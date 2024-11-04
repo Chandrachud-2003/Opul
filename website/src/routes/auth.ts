@@ -1,20 +1,21 @@
 import express from 'express';
 import { User } from '../models/User';
 import { verifyToken } from '../middleware/auth';
+import { Request, Response } from 'express';
 
 const router = express.Router();
 
-router.post('/verify-token', verifyToken, async (req, res) => {
+router.post('/verify-token', verifyToken, async (req: Request, res: Response) => {
   try {
-    const user = await User.findOne({ firebaseUid: req.user.uid });
+    const user = await User.findOne({ firebaseUid: res.locals.user.uid });
     if (!user) {
-      // Create new user if first time
       const newUser = await User.create({
-        firebaseUid: req.user.uid,
-        email: req.user.email,
-        displayName: req.user.name
+        firebaseUid: res.locals.user.uid,
+        email: res.locals.user.email,
+        displayName: res.locals.user.name
       });
-      return res.json(newUser);
+      res.json(newUser);
+      return;
     }
     res.json(user);
   } catch (error) {

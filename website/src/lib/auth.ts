@@ -1,4 +1,13 @@
 import { type AuthConfig } from '@auth/core';
+import { DefaultSession } from '@auth/core/types'
+
+declare module '@auth/core/types' {
+  interface Session {
+    user?: DefaultSession['user'] & {
+      accessToken?: string
+    }
+  }
+}
 
 export const authConfig = {
   providers: [
@@ -41,8 +50,10 @@ export const authConfig = {
       }
       return token;
     },
-    async session({ session, token }) {
-      session.user.accessToken = token.accessToken;
+    async session({ session, token }: { session: any, token: { accessToken?: string } }) {
+      if (session.user) {
+        session.user.accessToken = token.accessToken;
+      }
       return session;
     }
   },

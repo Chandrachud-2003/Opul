@@ -1,9 +1,10 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { auth } from '../lib/firebase';
-import { User as FirebaseUser } from 'firebase/auth';
+import { auth, googleProvider } from '../lib/firebase';
+import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { createOrUpdateUser } from '../lib/api';
 
 interface AuthContextType {
-  user: FirebaseUser | null;
+  user: any;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -11,8 +12,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,11 +26,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signInWithGoogle = async () => {
-    // Implement Google sign-in
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      // After successful sign-in, create/update user in MongoDB
+      await createOrUpdateUser(result.user);
+    } catch (error) {
+      console.error('Sign-in error:', error);
+    }
   };
 
   const signOut = async () => {
-    await auth.signOut();
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Sign-out error:', error);
+    }
   };
 
   return (
