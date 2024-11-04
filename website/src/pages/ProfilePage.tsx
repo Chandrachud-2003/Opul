@@ -20,6 +20,10 @@ interface ReferralCodeData {
   referralLink: string;
 }
 
+interface VerifiedBadgeProps {
+  className?: string;
+}
+
 interface UserStats {
   totalReferrals: number;
   totalEarnings: number;
