@@ -14,4 +14,18 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+export const createOrUpdateUser = async (user: any) => {
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL
+    })
+  });
+  return response.json();
+};
+
 export default api;
