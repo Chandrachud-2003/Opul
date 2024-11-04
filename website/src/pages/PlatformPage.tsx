@@ -162,7 +162,9 @@ export function PlatformPage() {
                         )}
                       </button>
                       <a
-                        href="#"
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="p-3 text-gray-600 hover:text-indigo-600 transition-colors"
                       >
                         <ExternalLink className="w-5 h-5" />
