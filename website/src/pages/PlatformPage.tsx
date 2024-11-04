@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Copy, Check, ExternalLink, Award, Info } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 // Placeholder data
 const platformData = {
@@ -23,11 +24,14 @@ const platformData = {
         name: 'Sarah M.',
         avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64',
         score: 95,
-        verified: true
+        verified: true,
+        type: 'code',
       },
       code: 'SARAHM2024',
       clicks: 234,
-      success: '98%'
+      success: '98%',
+      type: 'code',
+      link: 'https://www.example.com'
     },
     {
       id: 2,
@@ -35,11 +39,13 @@ const platformData = {
         name: 'John D.',
         avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64',
         score: 88,
-        verified: true
+        verified: true,
       },
       code: 'JOHND2024',
       clicks: 189,
-      success: '95%'
+      success: '95%',
+      type: 'code',
+      link: 'https://www.example.com'
     }
   ],
   relatedDeals: [
@@ -115,7 +121,7 @@ export function PlatformPage() {
               </div>
             </div>
 
-            {/* Top Codes */}
+          {/* Top Codes */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <h2 className="text-xl font-bold mb-6">Top Referral Codes</h2>
               <div className="space-y-4">
@@ -139,9 +145,6 @@ export function PlatformPage() {
                             Score: {item.user.score}
                           </div>
                         </div>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {item.clicks} uses • {item.success} success
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
@@ -177,23 +180,23 @@ export function PlatformPage() {
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <h2 className="text-xl font-bold mb-6">Related Deals</h2>
               <div className="space-y-4">
-                {platformData.relatedDeals.map((deal) => (
-                  <a
-                    key={deal.id}
-                    href={`/platform/${deal.id}`}
-                    className="flex items-center gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <img
-                      src={deal.logo}
-                      alt={deal.name}
-                      className="w-12 h-12 rounded-lg"
-                    />
-                    <div>
-                      <h3 className="font-medium">{deal.name}</h3>
-                      <p className="text-sm text-indigo-600">{deal.benefit}</p>
-                    </div>
-                  </a>
-                ))}
+              {platformData.relatedDeals.slice(0, 2).map((deal) => (
+                <Link
+                  key={deal.id}
+                  to={`/platform/${deal.id}`}
+                  className="flex items-center gap-4 p-4 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <img
+                    src={deal.logo}
+                    alt={deal.name}
+                    className="w-12 h-12 rounded-lg"
+                  />
+                  <div>
+                    <h3 className="font-medium">{deal.name}</h3>
+                    <p className="text-sm text-indigo-600">{deal.benefit}</p>
+                  </div>
+                </Link>
+              ))}
               </div>
             </div>
 

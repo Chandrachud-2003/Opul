@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { Search as SearchIcon, Filter, Award } from 'lucide-react';
 
 const categories = [
@@ -38,9 +39,40 @@ const platforms = [
 ];
 
 export function SearchPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Initialize search query and category from URL params
+  useEffect(() => {
+    const queryParam = searchParams.get('q') || '';
+    const categoryParam = searchParams.get('category') || 'all';
+    setSearchQuery(queryParam);
+    setSelectedCategory(categoryParam);
+  }, [searchParams]);
+
+  // Handle search input change
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newQuery = e.target.value;
+    setSearchQuery(newQuery);
+    if (newQuery) {
+      setSearchParams({ q: newQuery, category: selectedCategory });
+    } else {
+      setSearchParams({ category: selectedCategory });
+    }
+  }, [setSearchParams, selectedCategory]);
+
+  // Handle category selection
+  const handleCategoryChange = useCallback((categoryId: string) => {
+    setSelectedCategory(categoryId);
+    if (searchQuery) {
+      setSearchParams({ q: searchQuery, category: categoryId });
+    } else {
+      setSearchParams({ category: categoryId });
+    }
+  }, [searchQuery, setSearchParams]);
+
+  // Filter platforms based on search query and selected category
   const filteredPlatforms = platforms.filter((platform) => {
     const matchesCategory = selectedCategory === 'all' || platform.category === selectedCategory;
     const matchesSearch = platform.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -59,7 +91,7 @@ export function SearchPage() {
               type="text"
               placeholder="Search platforms or paste a referral link..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
           </div>
@@ -77,7 +109,7 @@ export function SearchPage() {
                 {categories.map((category) => (
                   <button
                     key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
+                    onClick={() => handleCategoryChange(category.id)}
                     className={`w-full text-left px-4 py-2 rounded-lg transition-colors ${
                       selectedCategory === category.id
                         ? 'bg-indigo-50 text-indigo-600'
@@ -93,44 +125,51 @@ export function SearchPage() {
 
           {/* Results */}
           <div className="lg:col-span-3">
-            <div className="grid md:grid-cols-2 gap-6">
-              {filteredPlatforms.map((platform) => (
-                <a
-                  key={platform.id}
-                  href={`/platform/${platform.id}`}
-                  className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-center gap-4 mb-4">
-                    <img
-                      src={platform.logo}
-                      alt={platform.name}
-                      className="w-16 h-16 rounded-lg"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-lg">{platform.name}</h3>
-                      <p className="text-indigo-600 font-medium">{platform.deal}</p>
+            {filteredPlatforms.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg">No results found for your search.</p>
+                <p className="text-gray-400">Try adjusting your search terms or filters.</p>
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 gap-6">
+                {filteredPlatforms.map((platform) => (
+                  <Link
+                    key={platform.id}
+                    to={`/platform/${platform.id}`}
+                    className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex items-center gap-4 mb-4">
+                      <img
+                        src={platform.logo}
+                        alt={platform.name}
+                        className="w-16 h-16 rounded-lg"
+                      />
+                      <div>
+                        <h3 className="font-semibold text-lg">{platform.name}</h3>
+                        <p className="text-indigo-600 font-medium">{platform.deal}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm text-gray-600">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mt-4">
                       <img
                         src={platform.topUser.avatar}
                         alt={platform.topUser.name}
                         className="w-6 h-6 rounded-full"
                       />
-                      <span>{platform.topUser.name}</span>
+                      <span className="text-sm text-gray-600">{platform.topUser.name}</span>
+                      <div className="flex items-center gap-1 ml-auto">
+                        <Award className="w-4 h-4 text-yellow-500" />
+                        <span className="text-sm font-medium">{platform.topUser.score}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Award className="w-4 h-4 text-indigo-600" />
-                      <span>{platform.topUser.score}</span>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   );
 }
+
+export default SearchPage;

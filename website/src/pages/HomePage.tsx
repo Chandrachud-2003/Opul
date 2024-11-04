@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, CreditCard, ShoppingBag, Wallet, Gift, Award, TrendingUp } from 'lucide-react';
+import { Search, CreditCard, ShoppingBag, Wallet, Gift, Award, TrendingUp, CheckCircle, Copy } from 'lucide-react';
 
 const categories = [
   { id: 'finance', name: 'Finance', icon: CreditCard },
@@ -46,7 +46,8 @@ const topPerformers = [
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64',
     score: 95,
     referrals: 234,
-    earnings: '$4,320'
+    earnings: '$4,320',
+    verified: true
   },
   {
     id: 2,
@@ -54,12 +55,26 @@ const topPerformers = [
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64',
     score: 88,
     referrals: 189,
-    earnings: '$3,150'
+    earnings: '$3,150',
+    verified: true
   },
   // Add more performers...
 ];
 
 export function HomePage() {
+  const [copied, setCopied] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
+
+  const handleCopyCode = useCallback(() => {
+    navigator.clipboard.writeText('PROMO2024');
+    setCopied(true);
+    setShowPopup(true);
+    setTimeout(() => {
+      setShowPopup(false);
+      setCopied(false);
+    }, 3000); // Automatically close the popup after 3 seconds
+  }, []);
+
   return (
     <div className="pt-16">
       {/* Hero Section */}
@@ -73,35 +88,21 @@ export function HomePage() {
         <p className="text-xl text-gray-600 mb-12 max-w-2xl mx-auto">
           Join our community of smart referrers. Share your codes, help others save, and earn rewards.
         </p>
-        
-        {/* Search Bar */}
-        <div className="max-w-2xl mx-auto relative">
-          <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Search platforms or paste a referral link..."
-            className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
+        <div className="flex justify-center">
+          <button
+            onClick={handleCopyCode}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            <Copy className="w-5 h-5" />
+            {copied ? 'Copied!' : 'Copy Promo Code'}
+          </button>
         </div>
+        {showPopup && (
+          <div className="mt-4 text-green-600">
+            Promo code copied to clipboard!
+          </div>
+        )}
       </header>
-
-      {/* Categories */}
-      <section className="container mx-auto px-4 mb-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {categories.map(({ id, name, icon: Icon }) => (
-            <Link
-              key={id}
-              to={`/search?category=${id}`}
-              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow text-center"
-            >
-              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon className="w-6 h-6 text-indigo-600" />
-              </div>
-              <h3 className="font-semibold text-gray-800">{name}</h3>
-            </Link>
-          ))}
-        </div>
-      </section>
 
       {/* Top Code of the Day */}
       <section className="container mx-auto px-4 mb-16">
@@ -140,6 +141,22 @@ export function HomePage() {
         </div>
       </section>
 
+      {/* Categories */}
+      <section className="container mx-auto px-4 mb-16">
+        <div className="flex flex-wrap justify-center gap-4">
+          {categories.map(({ id, name, icon: Icon }) => (
+            <Link
+              key={id}
+              to={`/search?category=${id}`}
+              className="flex items-center gap-2 bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full font-medium hover:bg-indigo-200 transition-colors"
+            >
+              <Icon className="w-5 h-5" />
+              {name}
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Available Platforms */}
       <section className="container mx-auto px-4 mb-16">
         <h2 className="text-2xl font-bold mb-8">Popular Platforms</h2>
@@ -161,20 +178,6 @@ export function HomePage() {
                   <p className="text-indigo-600 font-medium">{platform.deal}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={platform.topUser.avatar}
-                    alt={platform.topUser.name}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  <span>{platform.topUser.name}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Award className="w-4 h-4 text-indigo-600" />
-                  <span>{platform.topUser.score}</span>
-                </div>
-              </div>
             </Link>
           ))}
         </div>
@@ -185,7 +188,7 @@ export function HomePage() {
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-8">Top Performers This Month</h2>
           <div className="grid md:grid-cols-3 gap-6">
-            {topPerformers.map((performer, index) => (
+            {topPerformers.map((performer) => (
               <div key={performer.id} className="bg-white p-6 rounded-xl shadow-sm">
                 <div className="flex items-center gap-4 mb-4">
                   <img
@@ -193,12 +196,11 @@ export function HomePage() {
                     alt={performer.name}
                     className="w-16 h-16 rounded-full"
                   />
-                  <div>
-                    <h3 className="font-semibold text-lg">{performer.name}</h3>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Award className="w-4 h-4 text-indigo-600" />
-                      <span>{performer.score} Score</span>
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <span>{performer.name}</span>
+                    {performer.verified && (
+                      <CheckCircle className="w-4 h-4 text-blue-500" />
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-center">
@@ -219,3 +221,5 @@ export function HomePage() {
     </div>
   );
 }
+
+export default HomePage;
