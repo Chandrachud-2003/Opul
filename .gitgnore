@@ -7,6 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Environment files
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Firebase credentials
+*serviceAccountKey*.json
+firebase*ServiceAccountKey*.json
+**/*serviceAccountKey*.json
+**/firebase*config*.json
+firebase-adminsdk*.json
+
 node_modules
 dist
 dist-ssr
