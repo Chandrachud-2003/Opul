@@ -28,10 +28,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signInWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
-      // After successful sign-in, create/update user in MongoDB
+      if (!result.user) throw new Error('No user data returned');
       await createOrUpdateUser(result.user);
+      return result;
     } catch (error) {
       console.error('Sign-in error:', error);
+      throw error;
     }
   };
 

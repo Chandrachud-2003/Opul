@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import api from '../config/axios';
 
 export function AuthPage() {
   const [error, setError] = useState<string | null>(null);
@@ -9,11 +10,50 @@ export function AuthPage() {
   const navigate = useNavigate();
   const { signInWithGoogle } = useAuth();
 
+  interface GoogleAuthResult {
+    user: {
+      uid: string;
+      email: string;
+      emailVerified: boolean;
+      displayName: string | null;
+      photoURL: string | null;
+      phoneNumber: string | null;
+      metadata: {
+        creationTime?: string;
+        lastSignInTime?: string;
+      };
+      providerData: {
+        providerId: string;
+        uid: string;
+        displayName: string | null;
+        email: string | null;
+        phoneNumber: string | null;
+        photoURL: string | null;
+      }[];
+    };
+  }
+
   const handleGoogleSignIn = async () => {
     try {
       setError(null);
       setLoading(true);
-      await signInWithGoogle();
+      const googleResult = (await signInWithGoogle()) as unknown as GoogleAuthResult;
+      if (!googleResult?.user) throw new Error('No user data returned');
+      
+      // Check if user exists in MongoDB
+      try {
+        const response = await api.get(`/api/users/${googleResult.user.email}`);
+        if (response.data) {
+          console.log('User exists in MongoDB:', response.data);
+        }
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          console.log('User doesn\'t exist in MongoDB');
+        } else {
+          console.error('Error checking user:', error);
+        }
+      }
+
       navigate('/');
     } catch (error) {
       console.error('Error signing in with Google:', error);
