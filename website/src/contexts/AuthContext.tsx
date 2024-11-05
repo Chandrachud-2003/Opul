@@ -1,12 +1,12 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider } from '../lib/firebase';
-import { signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
+import { signInWithPopup, signOut as firebaseSignOut, signInWithRedirect, getAuth, GoogleAuthProvider, getRedirectResult, UserCredential } from 'firebase/auth';
 import { createOrUpdateUser } from '../lib/api';
 
 interface AuthContextType {
   user: any;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<UserCredential>;
   signOut: () => Promise<void>;
 }
 
@@ -27,8 +27,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signInWithGoogle = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (!result.user) throw new Error('No user data returned');
+      const auth = getAuth();
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      if (!result?.user) throw new Error('No user data returned');
       await createOrUpdateUser(result.user);
       return result;
     } catch (error) {

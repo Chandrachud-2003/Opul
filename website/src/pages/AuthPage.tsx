@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/axios';
+import { getAuth, signInWithPopup, GoogleAuthProvider, getRedirectResult } from 'firebase/auth';
+import { createOrUpdateUser } from '../utils/userUtils';
 
 export function AuthPage() {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { signInWithGoogle } = useAuth();
@@ -33,31 +35,43 @@ export function AuthPage() {
     };
   }
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setError(null);
-      setLoading(true);
-      const googleResult = (await signInWithGoogle()) as unknown as GoogleAuthResult;
-      if (!googleResult?.user) throw new Error('No user data returned');
-      
-      // Check if user exists in MongoDB
+  useEffect(() => {
+    const handleRedirectResult = async () => {
       try {
-        const response = await api.get(`/api/users/${googleResult.user.email}`);
-        if (response.data) {
-          console.log('User exists in MongoDB:', response.data);
+        const auth = getAuth();
+        const result = await getRedirectResult(auth);
+        if (result) {
+          // User successfully signed in
+          await createOrUpdateUser(result.user);
+          navigate('/');
         }
-      } catch (error: any) {
-        if (error.response?.status === 404) {
-          console.log('User doesn\'t exist in MongoDB');
-        } else {
-          console.error('Error checking user:', error);
-        }
+      } catch (error) {
+        console.error('Error handling redirect:', error);
+        setError('Failed to sign in with Google. Please try again.');
       }
+    };
 
-      navigate('/');
-    } catch (error) {
-      console.error('Error signing in with Google:', error);
-      setError('Failed to sign in with Google. Please try again.');
+    handleRedirectResult();
+  }, [navigate]);
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    
+    try {
+      const auth = getAuth();
+      const provider = new GoogleAuthProvider();
+      
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        console.log('Firebase auth successful, creating/updating user...');
+        await createOrUpdateUser(result.user);
+        console.log('User created/updated successfully');
+        navigate('/');
+      }
+    } catch (error: any) {
+      console.error('Auth error:', error);
+      setError(error.message || 'An error occurred during authentication');
     } finally {
       setLoading(false);
     }

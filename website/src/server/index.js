@@ -8,70 +8,65 @@ dotenv.config();
 
 const app = express();
 
+// Debug middleware - log all requests
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
-  optionsSuccessStatus: 200,
-  preflightContinue: false
+  optionsSuccessStatus: 200
 }));
 
-// Add OPTIONS handling for preflight requests
-app.options('*', cors());
-
+// Body parsing middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// MongoDB Connection
-const uri = process.env.MONGODB_URI;
-console.log('Attempting to connect to MongoDB...');
-
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  },
-  // Add monitoring without the unsupported option
-  monitorCommands: true
+// Health check endpoint - defined before other routes
+app.get('/health', (req, res) => {
+  console.log('Health check endpoint hit');
+  res.status(200).json({ 
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    message: 'Server is running'
+  });
 });
 
-async function connectDB() {
-  try {
-    console.log('Connecting to MongoDB...');
-    await client.connect();
-    console.log('Connected to client, attempting ping...');
-    await client.db("admin").command({ ping: 1 });
-    console.log("Successfully connected to MongoDB!");
-    return client.db();
-  } catch (error) {
-    console.error("MongoDB connection error details:", {
-      name: error.name,
-      message: error.message,
-      code: error.code,
-      stack: error.stack
-    });
-    process.exit(1);
-  }
-}
-
-// Initialize database connection
-connectDB().catch(error => {
-  console.error('Failed to connect to MongoDB:', error);
-  process.exit(1);
+// Test endpoint
+app.get('/test', (req, res) => {
+  res.json({ message: 'Test endpoint working' });
 });
 
-// Routes
+// API routes
 app.use('/api/users', usersRouter);
 
-const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal Server Error' });
 });
 
-// Handle process termination
-process.on('SIGINT', async () => {
-  await client.close();
-  process.exit(0);
-}); 
+// Catch-all route for debugging
+app.use('*', (req, res) => {
+  console.log(`Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Not Found',
+    requestedUrl: req.originalUrl
+  });
+});
+
+const PORT = process.env.PORT || 5001;
+
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+  console.log('Available endpoints:');
+  console.log('- GET /health');
+  console.log('- GET /test');
+  console.log('- /api/users/*');
+});
