@@ -1,7 +1,7 @@
 import mongoose, { Document } from 'mongoose';
 
 interface IUser extends Document {
-  firebaseUid: string;
+  uid: string;
   email: string;
   displayName?: string;
   profilePicture?: string;
@@ -22,7 +22,7 @@ interface IUser extends Document {
 }
 
 const userSchema = new mongoose.Schema({
-  firebaseUid: { type: String, required: true, unique: true },
+  uid: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
   displayName: String,
   profilePicture: String,
@@ -42,7 +42,7 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-userSchema.index({ firebaseUid: 1 }, { unique: true });
+userSchema.index({ uid: 1 }, { unique: true });
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ credibilityScore: -1 });
 

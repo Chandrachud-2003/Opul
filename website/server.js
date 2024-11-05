@@ -4,10 +4,8 @@ const app = express();
 
 // Enable CORS for all routes
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://your-production-domain.com'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  origin: 'http://localhost:5173', // Your frontend URL
+  credentials: true // If you're using cookies/sessions
 }));
 
 // ... rest of your server code ... 

@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Gift, Search, Menu, X } from 'lucide-react';
+import { Gift, Search, Menu, X, User } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 // Define SearchForm as a separate component outside of Navbar
 interface SearchFormProps {
@@ -45,6 +46,7 @@ export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // useCallback to memoize handleSearch
   const handleSearch = useCallback(() => {
@@ -52,6 +54,39 @@ export function Navbar() {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   }, [navigate, searchQuery]);
+
+  const AuthButton = () => {
+    if (user) {
+      return (
+        <Link
+          to={`/profile/${user.uid}`}
+          className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          {user.photoURL ? (
+            <img 
+              src={user.photoURL} 
+              alt={user.displayName || 'Profile'} 
+              className="w-6 h-6 rounded-full object-cover"
+            />
+          ) : (
+            <User className="w-6 h-6" />
+          )}
+          <span className="truncate max-w-[120px]">
+            {user.displayName?.split('@')[0] || 'Profile'}
+          </span>
+        </Link>
+      );
+    }
+
+    return (
+      <Link
+        to="/auth"
+        className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+      >
+        Sign In
+      </Link>
+    );
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md z-50 border-b border-gray-100">
@@ -70,12 +105,7 @@ export function Navbar() {
               setSearchQuery={setSearchQuery}
               onSearch={handleSearch}
             />
-            <Link
-              to="/auth"
-              className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              Sign In
-            </Link>
+            <AuthButton />
           </div>
 
           {/* Mobile menu button */}
@@ -98,16 +128,11 @@ export function Navbar() {
               setSearchQuery={setSearchQuery}
               onSearch={() => {
                 handleSearch();
-                setIsMenuOpen(false); // Optionally close the menu after search
+                setIsMenuOpen(false);
               }}
               className="w-full"
             />
-            <Link
-              to="/auth"
-              className="block w-full text-center bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
-            >
-              Sign In
-            </Link>
+            <AuthButton />
           </div>
         </div>
       )}

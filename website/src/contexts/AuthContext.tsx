@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider } from '../lib/firebase';
 import { signInWithPopup, signOut as firebaseSignOut, signInWithRedirect, getAuth, GoogleAuthProvider, getRedirectResult, UserCredential } from 'firebase/auth';
-import { createOrUpdateUser } from '../lib/api';
+import { createOrUpdateUser } from '../utils/userUtils';
 
 interface AuthContextType {
   user: any;
@@ -17,7 +17,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        // Check last login time from your database
+        const token = await user.getIdToken();
+        const response = await fetch('/api/auth/verify-session', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!response.ok) {
+          // Force sign out if session is expired
+          await signOut();
+          return;
+        }
+      }
       setUser(user);
       setLoading(false);
     });
@@ -41,9 +53,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signOut = async () => {
     try {
+      // Clear any stored tokens or session data
+      localStorage.removeItem('authToken'); // If you're storing any tokens
+      sessionStorage.clear(); // Clear any session data
+
+      // Sign out from Firebase
       await firebaseSignOut(auth);
+
+      // Clear user state
+      setUser(null);
+
+      // Optional: Call your backend to invalidate the session
+      try {
+        await api.post('/api/auth/logout');
+      } catch (error) {
+        console.error('Error invalidating server session:', error);
+      }
+
     } catch (error) {
       console.error('Sign-out error:', error);
+      throw error; // Rethrow to handle in the component
     }
   };
 

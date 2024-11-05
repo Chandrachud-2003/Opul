@@ -1,49 +1,31 @@
 import axios from 'axios';
-import { getAuth } from 'firebase/auth';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
+  baseURL: 'http://localhost:5001', // Make sure this matches your backend server
+  timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-  timeout: 10000, // 10 second timeout
+    'Content-Type': 'application/json'
+  }
 });
 
-// Add request interceptor to include Firebase auth token
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const auth = getAuth();
-      const user = auth.currentUser;
-      if (user) {
-        const token = await user.getIdToken();
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    } catch (error) {
-      console.error('Error in request interceptor:', error);
-      return Promise.reject(error);
-    }
-  },
-  (error) => {
-    console.error('Request interceptor error:', error);
-    return Promise.reject(error);
-  }
-);
+// Add request interceptor for debugging
+api.interceptors.request.use(request => {
+  console.log('Starting Request:', request);
+  return request;
+});
 
-// Add response interceptor for better error handling
+// Add response interceptor for debugging
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', {
+  response => {
+    console.log('Response:', response);
+    return response;
+  },
+  error => {
+    console.log('API Error:', {
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-      }
+      config: error.config
     });
     return Promise.reject(error);
   }

@@ -1,7 +1,12 @@
-import React, { useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Award, TrendingUp, Users, DollarSign, ExternalLink, Copy, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Award, TrendingUp, Users, DollarSign, ExternalLink, Copy, CheckCircle, LogOut } from 'lucide-react';
 import { useSpring, animated } from '@react-spring/web';
+import { PlusCircle } from 'lucide-react';
+import { LoadingPlaceholder } from '../components/LoadingPlaceholder';
+import { EmptyState } from '../components/EmptyState';
+import { useAuth } from '../contexts/AuthContext'; // Adjust the import path as needed
+import api from '../config/axios'; // Adjust the import path based on your project structure
 
 // Type definitions
 interface Platform {
@@ -227,7 +232,78 @@ const ReferralCode: React.FC<ReferralCodeProps> = ({ code, referralLink }) => {
 
 export const ProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const isOwnProfile = id === 'me';
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const [profileData, setProfileData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Add this handler for the "Add Referral Code" action
+  const handleAddReferralCode = () => {
+    navigate('/referrals/new'); // Adjust this route as needed
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout error:', error);
+      setError('Failed to log out. Please try again.');
+    }
+  };
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        setLoading(true);
+        
+        console.log('Current user:', user);
+        console.log('ID param:', id);
+        
+        if (!user && id === 'me') {
+          console.log('No user logged in, redirecting to auth');
+          navigate('/auth');
+          return;
+        }
+
+        const userId = id === 'me' ? user?.uid : id;
+        console.log('Using userId for API call:', userId);
+        
+        const response = await api.get(`/api/users/${userId}`);
+        console.log('API response:', response.data);
+
+        setProfileData(response.data);
+      } catch (err: any) {
+        console.error('Error fetching profile:', err);
+        setError(err.message || 'Failed to load profile');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, [id, user, navigate]);
+
+  if (loading) {
+    return (
+      <div className="pt-24 pb-16">
+        <div className="container mx-auto px-4">
+          <LoadingPlaceholder />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="pt-24 pb-16 text-center">
+        <div className="container mx-auto px-4 text-red-600">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-24 pb-16">
@@ -238,57 +314,74 @@ export const ProfilePage: React.FC = () => {
             {/* Profile Card */}
             <div className="bg-white p-6 rounded-xl shadow-sm text-center">
               <img
-                src={userData.avatar}
-                alt={userData.name}
+                src={profileData.profilePicture || '/default-avatar.png'}
+                alt={profileData.displayName}
                 className="w-24 h-24 rounded-full mx-auto mb-4"
               />
               <div className="flex items-center justify-center gap-2 mb-1">
-                <h1 className="text-xl font-bold">{userData.name}</h1>
-                {userData.verified && <VerifiedBadge />}
+                <h1 className="text-xl font-bold">{profileData.displayName}</h1>
+                {profileData.isPremium && <VerifiedBadge />}
               </div>
               <div className="text-gray-600 mb-4">
-                Member since {userData.joinedDate}
+                Member since {new Date(profileData.createdAt).toLocaleDateString()}
               </div>
               <div className="mb-6">
-                <CredibilityScore score={userData.credibilityScore} />
+                <CredibilityScore score={profileData.credibilityScore} />
               </div>
-              {isOwnProfile && (
-                <button className="w-full bg-indigo-600 text-white py-2 rounded-lg font-medium hover:bg-indigo-700 transition-colors">
-                  Edit Profile
-                </button>
+              {user?.uid === profileData.uid && (
+                <div className="space-y-2">
+                  <button 
+                    onClick={handleLogout}
+                    className="w-full flex items-center justify-center gap-2 bg-red-50 text-red-600 py-2 rounded-lg font-medium hover:bg-red-100 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
               )}
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                <TrendingUp className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-800">
-                  <AnimatedNumber value={userData.stats.totalReferrals} />
+              {profileData.stats ? (
+                <>
+                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                    <TrendingUp className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-800">
+                      <AnimatedNumber value={profileData.stats.totalReferrals || 0} />
+                    </div>
+                    <div className="text-sm text-gray-600">Total Referrals</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                    <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-800">
+                      <AnimatedNumber value={profileData.stats.totalEarnings} prefix="$" />
+                    </div>
+                    <div className="text-sm text-gray-600">Total Earnings</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                    <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-800">
+                      <AnimatedNumber value={profileData.stats.activeReferrals} />
+                    </div>
+                    <div className="text-sm text-gray-600">Active Referrals</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                    <Award className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-gray-800">
+                      <AnimatedNumber value={profileData.stats.successRate} suffix="%" />
+                    </div>
+                    <div className="text-sm text-gray-600">Success Rate</div>
+                  </div>
+                </>
+              ) : (
+                <div className="col-span-2">
+                  <EmptyState
+                    title="No Stats Yet"
+                    description="Start sharing your referral codes to see your performance metrics."
+                  />
                 </div>
-                <div className="text-sm text-gray-600">Total Referrals</div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-800">
-                  <AnimatedNumber value={userData.stats.totalEarnings} prefix="$" />
-                </div>
-                <div className="text-sm text-gray-600">Total Earnings</div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-800">
-                  <AnimatedNumber value={userData.stats.activeReferrals} />
-                </div>
-                <div className="text-sm text-gray-600">Active Referrals</div>
-              </div>
-              <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                <Award className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                <div className="text-2xl font-bold text-gray-800">
-                  <AnimatedNumber value={userData.stats.successRate} suffix="%" />
-                </div>
-                <div className="text-sm text-gray-600">Success Rate</div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -296,37 +389,68 @@ export const ProfilePage: React.FC = () => {
           <div className="lg:col-span-2">
             {/* Referral Codes */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
-              <h2 className="text-xl font-bold mb-6">Active Referral Codes</h2>
-              <div className="space-y-4">
-                {userData.referralCodes.map((item) => (
-                  <div key={item.id} className="border border-gray-100 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={item.platform.logo}
-                          alt={item.platform.name}
-                          className="w-12 h-12 rounded-lg"
-                        />
-                        <div>
-                          <h3 className="font-medium">{item.platform.name}</h3>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold">Active Referral Codes</h2>
+                {user?.uid === profileData.uid && (
+                  <button
+                    onClick={handleAddReferralCode}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-500"
+                  >
+                    <PlusCircle className="w-4 h-4" />
+                    Add Code
+                  </button>
+                )}
+              </div>
+              
+              {profileData.referralCodes?.length > 0 ? (
+                <div className="space-y-4">
+                  {profileData.referralCodes.map((item: any) => (
+                    <div key={item.id} className="border border-gray-100 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={item.platform.logo}
+                            alt={item.platform.name}
+                            className="w-12 h-12 rounded-lg"
+                          />
+                          <div>
+                            <h3 className="font-medium">{item.platform.name}</h3>
+                            <div className="text-sm text-gray-600">
+                              {item.platform.category}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-green-600 font-medium">
+                            {item.earnings}
+                          </div>
                           <div className="text-sm text-gray-600">
-                            {item.platform.category}
+                            {item.clicks} clicks • {item.success} success
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="text-green-600 font-medium">
-                          {item.earnings}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {item.clicks} clicks • {item.success} success
-                        </div>
-                      </div>
+                      <ReferralCode code={item.code} referralLink={item.referralLink} />
                     </div>
-                    <ReferralCode code={item.code} referralLink={item.referralLink} />
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No Referral Codes Yet"
+                  description={
+                    user?.uid === profileData.uid
+                      ? "You haven't added any referral codes yet. Add your first code to start earning rewards!"
+                      : "This user hasn't added any referral codes yet."
+                  }
+                  action={
+                    user?.uid === profileData.uid
+                      ? {
+                          label: "Add Your First Code",
+                          onClick: handleAddReferralCode,
+                        }
+                      : undefined
+                  }
+                />
+              )}
             </div>
           </div>
         </div>

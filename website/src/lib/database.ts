@@ -1,11 +1,12 @@
 import { connectToDatabase } from './mongodb';
+import { Db, ObjectId } from 'mongodb';
 
 export const createOrUpdateUser = async (firebaseUser: any) => {
   const db = await connectToDatabase();
   const users = db.collection('users');
 
   const userData = {
-    firebaseUid: firebaseUser.uid,
+    uid: firebaseUser.uid,
     email: firebaseUser.email,
     displayName: firebaseUser.displayName,
     profilePicture: firebaseUser.photoURL,
@@ -19,7 +20,7 @@ export const createOrUpdateUser = async (firebaseUser: any) => {
   };
 
   await users.updateOne(
-    { firebaseUid: firebaseUser.uid },
+    { uid: firebaseUser.uid },
     { $set: userData },
     { upsert: true }
   );
@@ -39,7 +40,7 @@ export const getReferralCodes = async (platformId: string) => {
 export const trackClick = async (referralCodeId: string) => {
   const db = await connectToDatabase();
   await db.collection('referralCodes').updateOne(
-    { _id: referralCodeId },
+    { _id: new ObjectId(referralCodeId) },
     { 
       $inc: { clicks: 1 },
       $set: { lastClickedAt: new Date() }

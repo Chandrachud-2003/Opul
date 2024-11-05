@@ -15,6 +15,8 @@ export default async function handler(
     await connectDB();
     const { firebaseUid, email, displayName, profilePicture } = req.body;
 
+    const SESSION_DURATION = 14 * 24 * 60 * 60 * 1000; // 14 days in milliseconds
+
     // Find or create user
     const existingUser = await User.findOne({ firebaseUid });
     
@@ -24,6 +26,7 @@ export default async function handler(
         { firebaseUid },
         {
           lastLoginAt: new Date(),
+          sessionExpiresAt: new Date(Date.now() + SESSION_DURATION),
           'metadata.lastUpdated': new Date(),
           // Update other fields if needed
           displayName,

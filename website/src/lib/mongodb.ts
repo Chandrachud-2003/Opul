@@ -1,6 +1,16 @@
 import mongoose from 'mongoose';
+import { MongoClient } from 'mongodb';
 
-const MONGODB_URI = process.env.MONGODB_URI || process.env.NEXT_PUBLIC_MONGODB_URI;
+declare global {
+  var mongoose: MongooseCache | undefined;
+}
+
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
+
+const MONGODB_URI = process.env.MONGODB_URI ?? process.env.NEXT_PUBLIC_MONGODB_URI ?? '';
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env');
@@ -29,7 +39,7 @@ export async function connectDB(): Promise<typeof mongoose> {
 
     cached.promise = mongoose
       .connect(MONGODB_URI)
-      .then((mongooseInstance) => mongooseInstance);
+      .then((mongoose) => mongoose);
   }
 
   try {
@@ -40,4 +50,9 @@ export async function connectDB(): Promise<typeof mongoose> {
     cached.promise = null;
     throw e;
   }
+}
+
+export async function connectToDatabase() {
+  const client = await MongoClient.connect(MONGODB_URI);
+  return client.db("Opul");
 }
