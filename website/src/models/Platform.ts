@@ -49,6 +49,7 @@ interface IPlatform extends Document {
   referralCodes: mongoose.Types.ObjectId[];
   getReferralSteps: string[];    // New field
   getReferralLink?: string;      // New field - optional
+  websiteUrl: string;      // New required field
 }
 
 const validationRulesSchema = new mongoose.Schema({
@@ -152,16 +153,16 @@ const platformSchema = new mongoose.Schema({
     }, { _id: false }),
     validate: {
       validator: (validation: any) => {
-        // Ensure only code OR link validation is provided based on referralType
         const type = (this as any).referralType;
+        // Only require validation rules for code type
         if (type === ReferralType.CODE) {
           return !!validation.code && !validation.link;
         } else if (type === ReferralType.LINK) {
-          return !!validation.link && !validation.code;
+          return !!validation.link;  // Link validation is optional
         }
         return false;
       },
-      message: 'Validation rules must match the referral type (code or link only)'
+      message: 'Validation rules must match the referral type (required for code type)'
     }
   },
   metadata: {
@@ -190,6 +191,16 @@ const platformSchema = new mongoose.Schema({
       },
       message: 'If provided, getReferralLink must be a valid HTTPS URL without special characters or IP addresses'
     }
+  },
+  websiteUrl: { 
+    type: String,
+    required: [true, 'Website URL is required'],
+    validate: {
+      validator: function(v: string) {
+        return validateUrl(v);
+      },
+      message: 'Website URL must be a valid HTTPS URL without special characters or IP addresses'
+    }
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields
@@ -211,6 +222,11 @@ platformSchema.pre('save', function(next) {
 
 // Instance method to validate a referral code or link
 platformSchema.methods.validateReferral = function(type: 'code' | 'link', value: string): { isValid: boolean; error?: string } {
+  // Skip validation for links entirely
+  if (type === 'link') {
+    return { isValid: true };
+  }
+
   // Sanitize input
   value = value.normalize('NFKC').trim();
   
@@ -219,38 +235,31 @@ platformSchema.methods.validateReferral = function(type: 'code' | 'link', value:
     return { isValid: false, error: 'Invalid characters detected' };
   }
 
-  // For links, apply strict URL validation
-  if (type === 'link' && !validateUrl(value)) {
-    return { isValid: false, error: 'Invalid URL format' };
-  }
-
-  const rules = this.validation[type];
+  const rules = this.validation.code;
   if (!rules) {
-    return { isValid: false, error: `No validation rules defined for ${type}` };
+    return { isValid: false, error: 'No validation rules defined for code' };
   }
 
-  // Check length
+  // Rest of the validation logic remains the same for codes
   if (rules.minLength && value.length < rules.minLength) {
-    return { isValid: false, error: `${type} must be at least ${rules.minLength} characters long` };
+    return { isValid: false, error: `Code must be at least ${rules.minLength} characters long` };
   }
   if (rules.maxLength && value.length > rules.maxLength) {
-    return { isValid: false, error: `${type} must be no more than ${rules.maxLength} characters long` };
+    return { isValid: false, error: `Code must be no more than ${rules.maxLength} characters long` };
   }
 
-  // Check pattern
   if (rules.pattern) {
     const regex = new RegExp(rules.pattern);
     if (!regex.test(value)) {
-      return { isValid: false, error: `${type} format is invalid` };
+      return { isValid: false, error: 'Code format is invalid' };
     }
   }
 
-  // Check case
   if (rules.case === 'upper' && value !== value.toUpperCase()) {
-    return { isValid: false, error: `${type} must be in uppercase` };
+    return { isValid: false, error: 'Code must be in uppercase' };
   }
   if (rules.case === 'lower' && value !== value.toLowerCase()) {
-    return { isValid: false, error: `${type} must be in lowercase` };
+    return { isValid: false, error: 'Code must be in lowercase' };
   }
 
   return { isValid: true };
