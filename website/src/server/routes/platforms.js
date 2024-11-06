@@ -23,9 +23,14 @@ router.get('/', async (req, res) => {
     }
     
     if (search) {
+      // Escape special regex characters and normalize unicode
+      const sanitizedSearch = search
+        .normalize('NFKC')
+        .replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+      
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { name: { $regex: `^${sanitizedSearch}$`, $options: 'i' } },
+        { description: { $regex: sanitizedSearch, $options: 'i' } }
       ];
     }
 

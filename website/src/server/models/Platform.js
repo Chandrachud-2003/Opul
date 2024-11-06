@@ -3,8 +3,7 @@ import mongoose from 'mongoose';
 // Enum for referral types
 export const ReferralType = {
   CODE: 'code',
-  LINK: 'link',
-  BOTH: 'both'
+  LINK: 'link'
 };
 
 // Enum for categories
@@ -29,7 +28,11 @@ const validationRulesSchema = new mongoose.Schema({
     default: 'any'
   },
   allowedCharacters: { type: String },
-  examples: [{ type: String }]
+  examples: [{ type: String }],
+  invalidMessage: { 
+    type: String, 
+    required: [true, 'Invalid format message is required']
+  }
 }, { _id: false });
 
 const platformSchema = new mongoose.Schema({
@@ -93,8 +96,22 @@ const platformSchema = new mongoose.Schema({
     required: [true, 'Referral type is required']
   },
   validation: {
-    code: validationRulesSchema,
-    link: validationRulesSchema
+    type: new mongoose.Schema({
+      code: validationRulesSchema,
+      link: validationRulesSchema
+    }, { _id: false }),
+    validate: {
+      validator: function(validation) {
+        const type = this.referralType;
+        if (type === ReferralType.CODE) {
+          return !!validation.code && !validation.link;
+        } else if (type === ReferralType.LINK) {
+          return !!validation.link && !validation.code;
+        }
+        return false;
+      },
+      message: 'Validation rules must match the referral type (code or link only)'
+    }
   },
   metadata: {
     lastUpdated: { type: Date, default: Date.now },
@@ -103,7 +120,26 @@ const platformSchema = new mongoose.Schema({
   referralCodes: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'ReferralCode' 
-  }]
+  }],
+  getReferralSteps: { 
+    type: [String],
+    required: [true, 'Steps to get referral code/link are required'],
+    validate: {
+      validator: function(v) {
+        return v.length > 0 && v.every(step => step.length >= 5);
+      },
+      message: 'At least one step is required, and each step must be at least 5 characters long'
+    }
+  },
+  getReferralLink: {
+    type: String,
+    validate: {
+      validator: function(v) {
+        return !v || /^(http|https):\/\/[^ "]+$/.test(v);
+      },
+      message: 'If provided, getReferralLink must be a valid URL'
+    }
+  }
 }, {
   timestamps: true
 });

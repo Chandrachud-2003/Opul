@@ -3,8 +3,7 @@ import mongoose, { Document } from 'mongoose';
 // Enum for referral types
 export enum ReferralType {
   CODE = 'code',
-  LINK = 'link',
-  BOTH = 'both'
+  LINK = 'link'
 }
 
 // Enum for categories
@@ -26,6 +25,7 @@ interface ValidationRules {
   case?: 'upper' | 'lower' | 'any';
   allowedCharacters?: string;
   examples?: string[];
+  invalidMessage: string;
 }
 
 interface IPlatform extends Document {
@@ -47,6 +47,8 @@ interface IPlatform extends Document {
     version: number;
   };
   referralCodes: mongoose.Types.ObjectId[];
+  getReferralSteps: string[];    // New field
+  getReferralLink?: string;      // New field - optional
 }
 
 const validationRulesSchema = new mongoose.Schema({
@@ -60,8 +62,28 @@ const validationRulesSchema = new mongoose.Schema({
     default: 'any'
   },
   allowedCharacters: { type: String },
-  examples: [{ type: String }]
+  examples: [{ type: String }],
+  invalidMessage: { 
+    type: String, 
+    required: [true, 'Invalid format message is required']
+  }
 }, { _id: false });
+
+// Add URL sanitization and validation helper
+const validateUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      // Prevent IP addresses in URLs
+      !/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(parsed.hostname) &&
+      // Prevent unicode lookalikes
+      !/[\u0080-\uffff]/.test(url)
+    );
+  } catch {
+    return false;
+  }
+};
 
 const platformSchema = new mongoose.Schema({
   name: { 
@@ -87,9 +109,9 @@ const platformSchema = new mongoose.Schema({
     required: [true, 'Icon URL is required'],
     validate: {
       validator: function(v: string) {
-        return /^(http|https):\/\/[^ "]+$/.test(v);
+        return validateUrl(v);
       },
-      message: 'Icon must be a valid URL'
+      message: 'Icon must be a valid HTTPS URL without special characters or IP addresses'
     }
   },
   description: { 
@@ -124,8 +146,23 @@ const platformSchema = new mongoose.Schema({
     required: [true, 'Referral type is required']
   },
   validation: {
-    code: validationRulesSchema,
-    link: validationRulesSchema
+    type: new mongoose.Schema({
+      code: validationRulesSchema,
+      link: validationRulesSchema
+    }, { _id: false }),
+    validate: {
+      validator: (validation: any) => {
+        // Ensure only code OR link validation is provided based on referralType
+        const type = (this as any).referralType;
+        if (type === ReferralType.CODE) {
+          return !!validation.code && !validation.link;
+        } else if (type === ReferralType.LINK) {
+          return !!validation.link && !validation.code;
+        }
+        return false;
+      },
+      message: 'Validation rules must match the referral type (code or link only)'
+    }
   },
   metadata: {
     lastUpdated: { type: Date, default: Date.now },
@@ -134,7 +171,26 @@ const platformSchema = new mongoose.Schema({
   referralCodes: [{ 
     type: mongoose.Schema.Types.ObjectId, 
     ref: 'ReferralCode' 
-  }]
+  }],
+  getReferralSteps: { 
+    type: [String],
+    required: [true, 'Steps to get referral code/link are required'],
+    validate: {
+      validator: function(v: string[]) {
+        return v.length > 0 && v.every(step => step.length >= 5);
+      },
+      message: 'At least one step is required, and each step must be at least 5 characters long'
+    }
+  },
+  getReferralLink: {
+    type: String,
+    validate: {
+      validator: function(v: string) {
+        return !v || validateUrl(v);
+      },
+      message: 'If provided, getReferralLink must be a valid HTTPS URL without special characters or IP addresses'
+    }
+  }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields
 });
@@ -155,6 +211,19 @@ platformSchema.pre('save', function(next) {
 
 // Instance method to validate a referral code or link
 platformSchema.methods.validateReferral = function(type: 'code' | 'link', value: string): { isValid: boolean; error?: string } {
+  // Sanitize input
+  value = value.normalize('NFKC').trim();
+  
+  // Prevent any ASCII control characters
+  if (/[\x00-\x1F\x7F]/.test(value)) {
+    return { isValid: false, error: 'Invalid characters detected' };
+  }
+
+  // For links, apply strict URL validation
+  if (type === 'link' && !validateUrl(value)) {
+    return { isValid: false, error: 'Invalid URL format' };
+  }
+
   const rules = this.validation[type];
   if (!rules) {
     return { isValid: false, error: `No validation rules defined for ${type}` };
@@ -212,7 +281,8 @@ const platform = await Platform.create({
       case: "upper",
       allowedCharacters: "A-Z0-9",
       format: "XXXXXXXX",
-      examples: ["UBER2024"]
+      examples: ["UBER2024"],
+      invalidMessage: "Invalid code format"
     }
   }
 });
