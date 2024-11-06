@@ -1,53 +1,22 @@
-import mongoose, { Document } from 'mongoose';
+import mongoose from 'mongoose';
 
 // Enum for referral types
-export enum ReferralType {
-  CODE = 'code',
-  LINK = 'link',
-  BOTH = 'both'
-}
+export const ReferralType = {
+  CODE: 'code',
+  LINK: 'link',
+  BOTH: 'both'
+};
 
 // Enum for categories
-export enum PlatformCategory {
-  FINANCE = 'finance',
-  TRAVEL = 'travel',
-  FOOD = 'food',
-  SHOPPING = 'shopping',
-  ENTERTAINMENT = 'entertainment',
-  TECHNOLOGY = 'technology',
-  OTHER = 'other'
-}
-
-interface ValidationRules {
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  format?: string;
-  case?: 'upper' | 'lower' | 'any';
-  allowedCharacters?: string;
-  examples?: string[];
-}
-
-interface IPlatform extends Document {
-  name: string;
-  slug: string;
-  category: PlatformCategory;  // Now required
-  icon: string;               // Now required
-  description: string;        // Now required
-  benefitDescription: string; // Now required
-  claimSteps: string[];      // Now required and must have at least one step
-  isActive: boolean;
-  referralType: ReferralType;
-  validation: {
-    code?: ValidationRules;
-    link?: ValidationRules;
-  };
-  metadata: {
-    lastUpdated: Date;
-    version: number;
-  };
-  referralCodes: mongoose.Types.ObjectId[];
-}
+export const PlatformCategory = {
+  FINANCE: 'finance',
+  TRAVEL: 'travel',
+  FOOD: 'food',
+  SHOPPING: 'shopping',
+  ENTERTAINMENT: 'entertainment',
+  TECHNOLOGY: 'technology',
+  OTHER: 'other'
+};
 
 const validationRulesSchema = new mongoose.Schema({
   minLength: { type: Number, min: 1 },
@@ -86,7 +55,7 @@ const platformSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Icon URL is required'],
     validate: {
-      validator: function(v: string) {
+      validator: function(v) {
         return /^(http|https):\/\/[^ "]+$/.test(v);
       },
       message: 'Icon must be a valid URL'
@@ -108,7 +77,7 @@ const platformSchema = new mongoose.Schema({
     type: [String],
     required: [true, 'Claim steps are required'],
     validate: {
-      validator: function(v: string[]) {
+      validator: function(v) {
         return v.length > 0 && v.every(step => step.length >= 5);
       },
       message: 'At least one claim step is required, and each step must be at least 5 characters long'
@@ -136,7 +105,7 @@ const platformSchema = new mongoose.Schema({
     ref: 'ReferralCode' 
   }]
 }, {
-  timestamps: true // Adds createdAt and updatedAt fields
+  timestamps: true
 });
 
 // Indexes
@@ -145,7 +114,7 @@ platformSchema.index({ category: 1 });
 platformSchema.index({ name: 'text', description: 'text' });
 platformSchema.index({ referralCodes: 1 });
 
-// Pre-save middleware to generate slug if not provided
+// Pre-save middleware
 platformSchema.pre('save', function(next) {
   if (!this.slug) {
     this.slug = this.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -153,14 +122,13 @@ platformSchema.pre('save', function(next) {
   next();
 });
 
-// Instance method to validate a referral code or link
-platformSchema.methods.validateReferral = function(type: 'code' | 'link', value: string): { isValid: boolean; error?: string } {
+// Instance method to validate referral
+platformSchema.methods.validateReferral = function(type, value) {
   const rules = this.validation[type];
   if (!rules) {
     return { isValid: false, error: `No validation rules defined for ${type}` };
   }
 
-  // Check length
   if (rules.minLength && value.length < rules.minLength) {
     return { isValid: false, error: `${type} must be at least ${rules.minLength} characters long` };
   }
@@ -168,7 +136,6 @@ platformSchema.methods.validateReferral = function(type: 'code' | 'link', value:
     return { isValid: false, error: `${type} must be no more than ${rules.maxLength} characters long` };
   }
 
-  // Check pattern
   if (rules.pattern) {
     const regex = new RegExp(rules.pattern);
     if (!regex.test(value)) {
@@ -176,7 +143,6 @@ platformSchema.methods.validateReferral = function(type: 'code' | 'link', value:
     }
   }
 
-  // Check case
   if (rules.case === 'upper' && value !== value.toUpperCase()) {
     return { isValid: false, error: `${type} must be in uppercase` };
   }
@@ -187,40 +153,4 @@ platformSchema.methods.validateReferral = function(type: 'code' | 'link', value:
   return { isValid: true };
 };
 
-export const Platform = mongoose.model<IPlatform>('Platform', platformSchema);
-
-// Example usage:
-/*
-const platform = await Platform.create({
-  name: "Uber",
-  category: PlatformCategory.TRAVEL,
-  icon: "https://example.com/uber-icon.png",
-  description: "Uber is a ride-hailing platform that connects drivers with passengers.",
-  benefitDescription: "Get $15 off your first ride when using a referral code.",
-  claimSteps: [
-    "Download the Uber app from App Store or Google Play",
-    "Create a new account",
-    "Enter the referral code in the 'Promotions' section",
-    "Your discount will be automatically applied to your first ride"
-  ],
-  referralType: ReferralType.CODE,
-  validation: {
-    code: {
-      minLength: 8,
-      maxLength: 8,
-      pattern: "^[A-Z0-9]{8}$",
-      case: "upper",
-      allowedCharacters: "A-Z0-9",
-      format: "XXXXXXXX",
-      examples: ["UBER2024"]
-    }
-  }
-});
-
-// Validate the platform
-try {
-  await platform.validate();
-} catch (error) {
-  console.error('Validation errors:', error.errors);
-}
-*/
+export const Platform = mongoose.model('Platform', platformSchema); 

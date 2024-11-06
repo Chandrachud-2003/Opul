@@ -4,7 +4,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import userRoutes from './routes/users.js';
 import authRoutes from './routes/auth.js';
-import User from './models/User.js';
+import platformRoutes from './routes/platforms.js';
+import { User } from './models/User.js';
 
 dotenv.config();
 
@@ -37,6 +38,9 @@ app.use('/api/users', userRoutes);
 
 // Mount the auth routes
 app.use('/api/auth', authRoutes);
+
+// Mount the platform routes
+app.use('/api/platforms', platformRoutes);
 
 // Connect to MongoDB before starting the server
 mongoose.connect(process.env.MONGODB_URI)

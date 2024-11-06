@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Search as SearchIcon, Filter, Award } from 'lucide-react';
+import { Search as SearchIcon, Filter, Award, RefreshCw, AlertCircle } from 'lucide-react';
+import { EmptyState } from '../components/EmptyState';
+import api from '../config/axios';
 
 const categories = [
   { id: 'all', name: 'All Categories' },
@@ -38,10 +40,26 @@ const platforms = [
   // Add more platforms...
 ];
 
+interface Platform {
+  id: string;
+  name: string;
+  category: string;
+  logo: string;
+  deal: string;
+  topUser: {
+    name: string;
+    avatar: string;
+    score: number;
+  };
+}
+
 export function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
 
   // Initialize search query and category from URL params
   useEffect(() => {
@@ -72,12 +90,28 @@ export function SearchPage() {
     }
   }, [searchQuery, setSearchParams]);
 
-  // Filter platforms based on search query and selected category
-  const filteredPlatforms = platforms.filter((platform) => {
-    const matchesCategory = selectedCategory === 'all' || platform.category === selectedCategory;
-    const matchesSearch = platform.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+  // Fetch platforms with search and filters
+  const fetchFilteredPlatforms = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.get('/api/platforms', {
+        params: {
+          search: searchQuery,
+          category: selectedCategory !== 'all' ? selectedCategory : undefined
+        }
+      });
+      setPlatforms(response.data.platforms);
+    } catch (error) {
+      console.error('Error fetching platforms:', error);
+      setError('Failed to load platforms');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [searchQuery, selectedCategory]);
+
+  useEffect(() => {
+    fetchFilteredPlatforms();
+  }, [fetchFilteredPlatforms]);
 
   return (
     <div className="pt-24 pb-16">
@@ -125,14 +159,50 @@ export function SearchPage() {
 
           {/* Results */}
           <div className="lg:col-span-3">
-            {filteredPlatforms.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">No results found for your search.</p>
-                <p className="text-gray-400">Try adjusting your search terms or filters.</p>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
               </div>
+            ) : error ? (
+              <EmptyState
+                icon={<AlertCircle className="w-12 h-12 text-red-400 mx-auto" />}
+                title="Error Loading Platforms"
+                description={error}
+                action={
+                  <button
+                    onClick={() => fetchFilteredPlatforms()}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                  >
+                    Try Again
+                  </button>
+                }
+              />
+            ) : platforms.length === 0 ? (
+              <EmptyState
+                title={searchQuery ? 'No Results Found' : 'No Platforms Available'}
+                description={
+                  searchQuery
+                    ? `We couldn't find any platforms matching "${searchQuery}"`
+                    : 'Check back soon for new platforms and offers!'
+                }
+                action={
+                  searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('all');
+                        setSearchParams({});
+                      }}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                    >
+                      Clear Search
+                    </button>
+                  )
+                }
+              />
             ) : (
               <div className="grid md:grid-cols-2 gap-6">
-                {filteredPlatforms.map((platform) => (
+                {platforms.map((platform) => (
                   <Link
                     key={platform.id}
                     to={`/platform/${platform.id}`}

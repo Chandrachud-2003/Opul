@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   Search, 
   CreditCard, 
@@ -12,6 +12,7 @@ import {
   Copy, 
   ExternalLink 
 } from 'lucide-react';
+import api from '../config/axios';
 
 const categories = [
   { id: 'finance', name: 'Finance', icon: CreditCard },
@@ -20,62 +21,48 @@ const categories = [
   { id: 'rewards', name: 'Rewards', icon: Gift },
 ];
 
-const platforms = [
-  {
-    id: 'chase-sapphire',
-    name: 'Chase Sapphire',
-    category: 'finance',
-    logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
-    deal: '60,000 Points Bonus',
-    clicks: 1234,
-    topUser: {
-      name: 'Sarah M.',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=32&h=32',
-      score: 95
-    }
-  },
-  {
-    id: 'amex-platinum',
-    name: 'Amex Platinum',
-    category: 'finance',
-    logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
-    deal: '150,000 Points Bonus',
-    clicks: 987,
-    topUser: {
-      name: 'John D.',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=32&h=32',
-      score: 88
-    }
-  },
-  // Add more platforms...
-];
+interface Platform {
+  _id: string;
+  name: string;
+  category: string;
+  icon: string;
+  description: string;
+  benefitDescription: string;
+}
 
-const topPerformers = [
+interface Performer {
+  id: string;
+  name: string;
+  avatar: string;
+  verified: boolean;
+  referrals: number;
+  earnings: string;
+}
+
+const topPerformers: Performer[] = [
   {
-    id: 1,
-    name: 'Sarah M.',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64',
-    score: 95,
-    referrals: 234,
-    earnings: '$4,320',
-    verified: true
+    id: '1',
+    name: 'John Doe',
+    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=32&h=32',
+    verified: true,
+    referrals: 156,
+    earnings: '$2,450'
   },
-  {
-    id: 2,
-    name: 'John D.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64',
-    score: 88,
-    referrals: 189,
-    earnings: '$3,150',
-    verified: true
-  },
-  // Add more performers...
+  // Add 2 more performers for the grid
 ];
 
 export function HomePage() {
   const [copied, setCopied] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [usesToday, setUsesToday] = useState(0);
+  const [platforms, setPlatforms] = useState<Platform[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const LIMIT = 30;
+  const navigate = useNavigate();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const handleCopyCode = useCallback(() => {
     navigator.clipboard.writeText('PROMO2024');
@@ -104,6 +91,47 @@ export function HomePage() {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch platforms
+  const fetchPlatforms = async (pageNum: number) => {
+    try {
+      const response = await api.get(`/api/platforms?page=${pageNum}&limit=${LIMIT}`);
+      const newPlatforms = response.data.platforms;
+      
+      setPlatforms(prev => pageNum === 1 ? newPlatforms : [...prev, ...newPlatforms]);
+      setHasMore(newPlatforms.length === LIMIT);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load platforms');
+      console.error('Error fetching platforms:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    fetchPlatforms(1);
+  }, []);
+
+  // Handle load more
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      const nextPage = page + 1;
+      setPage(nextPage);
+      fetchPlatforms(nextPage);
+    }
+  };
+
+  // Handle category click
+  const handleCategoryClick = (categoryId: string) => {
+    navigate(`/search?category=${categoryId}`);
+  };
+
+  // Filter platforms by category if selected
+  const filteredPlatforms = selectedCategory
+    ? platforms.filter(p => p.category === selectedCategory)
+    : platforms;
 
   return (
     <div className="pt-16">
@@ -219,42 +247,83 @@ export function HomePage() {
       <section className="container mx-auto px-4 mb-16">
         <div className="flex flex-wrap justify-center gap-4">
           {categories.map(({ id, name, icon: Icon }) => (
-            <Link
+            <button
               key={id}
-              to={`/search?category=${id}`}
+              onClick={() => handleCategoryClick(id)}
               className="flex items-center gap-2 bg-indigo-100 text-indigo-800 px-4 py-2 rounded-full font-medium hover:bg-indigo-200 transition-colors"
             >
               <Icon className="w-5 h-5" />
               {name}
-            </Link>
+            </button>
           ))}
         </div>
       </section>
 
-      {/* Available Platforms */}
+      {/* Available Platforms Section */}
       <section className="container mx-auto px-4 mb-16">
         <h2 className="text-2xl font-bold mb-8">Popular Platforms</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {platforms.map((platform) => (
-            <Link
-              key={platform.id}
-              to={`/platform/${platform.id}`}
-              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow transform hover:scale-105"
-            >
-              <div className="flex items-center gap-4 mb-4">
-                <img
-                  src={platform.logo}
-                  alt={platform.name}
-                  className="w-16 h-16 rounded-lg shadow-md"
-                />
-                <div>
-                  <h3 className="font-semibold text-lg">{platform.name}</h3>
-                  <p className="text-indigo-600 font-medium">{platform.deal}</p>
+        
+        {error && (
+          <div className="text-red-600 mb-4">
+            {error}
+          </div>
+        )}
+
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+            <p className="mt-4 text-gray-600">Loading platforms...</p>
+          </div>
+        ) : !filteredPlatforms.length ? (
+          <div className="text-center py-12 bg-gray-50 rounded-xl">
+            <div className="mb-4">
+              <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {selectedCategory ? 'No Platforms in This Category' : 'No Platforms Available Yet'}
+            </h3>
+            <p className="text-gray-500">
+              {selectedCategory 
+                ? 'Try selecting a different category or check back later.'
+                : 'Check back soon for exciting new platforms and offers!'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPlatforms.map((platform) => (
+              <Link
+                key={platform._id}
+                to={`/platform/${platform._id}`}
+                className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow transform hover:scale-105"
+              >
+                <div className="flex items-center gap-4 mb-4">
+                  <img
+                    src={platform.icon}
+                    alt={platform.name}
+                    className="w-16 h-16 rounded-lg shadow-md"
+                  />
+                  <div>
+                    <h3 className="font-semibold text-lg">{platform.name}</h3>
+                    <p className="text-indigo-600 font-medium">{platform.benefitDescription}</p>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Load More Button */}
+        {hasMore && (
+          <div className="text-center mt-8">
+            <button
+              onClick={handleLoadMore}
+              disabled={loading}
+              className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'Load More'}
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Top Performers */}

@@ -1,6 +1,6 @@
 import express from 'express';
-import { User } from '../../models/User';
-import { ReferralCode } from '../../models/ReferralCode';
+import { User } from '../models/User.js';
+import { ReferralCode } from '../models/ReferralCode.js';
 
 const router = express.Router();
 
