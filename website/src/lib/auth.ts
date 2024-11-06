@@ -1,11 +1,19 @@
 import { type AuthConfig } from '@auth/core';
-import { DefaultSession } from '@auth/core/types'
+import { DefaultSession, Session } from '@auth/core/types';
+import { JWT } from '@auth/core/jwt';
 
 declare module '@auth/core/types' {
   interface Session {
     user?: DefaultSession['user'] & {
-      accessToken?: string
+      accessToken?: string;
     }
+  }
+}
+
+declare module '@auth/core/jwt' {
+  interface JWT {
+    accessToken?: string;
+    refreshToken?: string;
   }
 }
 
@@ -50,7 +58,7 @@ export const authConfig = {
       }
       return token;
     },
-    async session({ session, token }: { session: any, token: { accessToken?: string } }) {
+    async session({ session, token }: { session: Session; token: JWT & { accessToken?: string } }) {
       if (session.user) {
         session.user.accessToken = token.accessToken;
       }

@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import { auth, googleProvider } from '../lib/firebase';
 import { signInWithPopup, signOut as firebaseSignOut, signInWithRedirect, getAuth, GoogleAuthProvider, getRedirectResult, UserCredential } from 'firebase/auth';
 import { createOrUpdateUser } from '../utils/userUtils';
+import api from '../config/axios';
 
 interface AuthContextType {
   user: any;

@@ -3,6 +3,13 @@ import mongoose, { Document } from 'mongoose';
 type SourceType = 'SCRAPED' | 'USER_SUBMITTED';
 type StatusType = 'ACTIVE' | 'EXPIRED' | 'BLOCKED';
 
+interface IFeedback {
+  userId: mongoose.Types.ObjectId;
+  isSuccess: boolean;
+  comment?: string;
+  createdAt: Date;
+}
+
 interface IReferralCode extends Document {
   platformId: mongoose.Types.ObjectId;
   code?: string;
@@ -20,7 +27,18 @@ interface IReferralCode extends Document {
     lastUpdated: Date;
     version: number;
   };
+  feedback: IFeedback[];
 }
+
+const feedbackSchema = new mongoose.Schema<IFeedback>(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    isSuccess: { type: Boolean, required: true },
+    comment: { type: String },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
 
 const referralCodeSchema = new mongoose.Schema({
   platformId: { type: mongoose.Schema.Types.ObjectId, ref: 'Platform', required: true },
@@ -47,11 +65,10 @@ const referralCodeSchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now },
     version: { type: Number, default: 1 },
   },
+  feedback: [feedbackSchema],
 });
 
-referralCodeSchema.index({ platformId: 1, status: 1 });
-referralCodeSchema.index({ userId: 1 });
-referralCodeSchema.index({ clicks: -1 });
-referralCodeSchema.index({ createdAt: -1 });
+referralCodeSchema.index({ platformId: 1, status: 1, clicks: -1 });
+referralCodeSchema.index({ userId: 1, status: 1 });
 
 export const ReferralCode = mongoose.model<IReferralCode>('ReferralCode', referralCodeSchema); 

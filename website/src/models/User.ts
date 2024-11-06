@@ -19,6 +19,11 @@ interface IUser extends Document {
     lastUpdated: Date;
     version: number;
   };
+  feedbackStats: {
+    positive: number;
+    negative: number;
+  };
+  referralCodes: mongoose.Types.ObjectId[];
 }
 
 const userSchema = new mongoose.Schema({
@@ -40,10 +45,16 @@ const userSchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now },
     version: { type: Number, default: 1 },
   },
+  feedbackStats: {
+    positive: { type: Number, default: 0 },
+    negative: { type: Number, default: 0 },
+  },
+  referralCodes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ReferralCode' }],
 });
 
 userSchema.index({ uid: 1 }, { unique: true });
 userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ credibilityScore: -1 });
+userSchema.index({ referralCodes: 1 });
 
 export const User = mongoose.model<IUser>('User', userSchema); 

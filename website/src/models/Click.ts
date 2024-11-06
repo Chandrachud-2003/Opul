@@ -24,4 +24,8 @@ const clickSchema = new mongoose.Schema({
   },
 });
 
+// Add new indexes
+clickSchema.index({ referralCodeId: 1, timestamp: -1 });
+clickSchema.index({ ipHash: 1 });
+
 export const Click = mongoose.model<IClick>('Click', clickSchema); 

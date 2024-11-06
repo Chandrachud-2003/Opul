@@ -13,6 +13,7 @@ interface IPlatform extends Document {
     lastUpdated: Date;
     version: number;
   };
+  referralCodes: mongoose.Types.ObjectId[]; // References to ReferralCode
 }
 
 const platformSchema = new mongoose.Schema({
@@ -28,10 +29,12 @@ const platformSchema = new mongoose.Schema({
     lastUpdated: { type: Date, default: Date.now },
     version: { type: Number, default: 1 },
   },
+  referralCodes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ReferralCode' }],
 });
 
 platformSchema.index({ slug: 1 }, { unique: true });
 platformSchema.index({ category: 1 });
-platformSchema.index({ name: 'text' });
+platformSchema.index({ name: 'text', description: 'text' });
+platformSchema.index({ referralCodes: 1 });
 
 export const Platform = mongoose.model<IPlatform>('Platform', platformSchema); 
