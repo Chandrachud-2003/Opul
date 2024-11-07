@@ -297,6 +297,7 @@ export function HomePage() {
                 key={platform._id}
                 to={`/platform/${platform.slug}`}
                 className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow transform hover:scale-105"
+                onClick={() => console.log('Clicked platform:', platform.slug)}
               >
                 <div className="flex items-center gap-4 mb-4">
                   <img

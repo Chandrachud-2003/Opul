@@ -240,7 +240,7 @@ export const ProfilePage: React.FC = () => {
 
   // Add this handler for the "Add Referral Code" action
   const handleAddReferralCode = () => {
-    navigate('/referrals/new'); // Adjust this route as needed
+    navigate('/search'); // Changed from '/referrals/new' to '/search'
   };
 
   const handleLogout = async () => {
@@ -377,6 +377,7 @@ export const ProfilePage: React.FC = () => {
               ) : (
                 <div className="col-span-2">
                   <EmptyState
+                    icon={<TrendingUp />}
                     title="No Stats Yet"
                     description="Start sharing your referral codes to see your performance metrics."
                   />
@@ -435,20 +436,15 @@ export const ProfilePage: React.FC = () => {
                 </div>
               ) : (
                 <EmptyState
+                  icon={<PlusCircle />}
                   title="No Referral Codes Yet"
                   description={
                     user?.uid === profileData.uid
                       ? "You haven't added any referral codes yet. Add your first code to start earning rewards!"
                       : "This user hasn't added any referral codes yet."
                   }
-                  action={
-                    user?.uid === profileData.uid
-                      ? {
-                          label: "Add Your First Code",
-                          onClick: handleAddReferralCode,
-                        }
-                      : undefined
-                  }
+                  actionLabel={user?.uid === profileData.uid ? "Add Your First Code" : undefined}
+                  onAction={user?.uid === profileData.uid ? handleAddReferralCode : undefined}
                 />
               )}
             </div>

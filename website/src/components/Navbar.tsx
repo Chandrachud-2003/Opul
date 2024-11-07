@@ -29,7 +29,7 @@ const SearchForm: React.FC<SearchFormProps> = React.memo(({ searchQuery, setSear
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         placeholder="Search platforms..."
-        className="flex-grow pl-4 pr-2 py-2 rounded-l-full border border-gray-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+        className="flex-grow pl-4 pr-2 py-2 rounded-l-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
       />
       <button
         type="submit"
@@ -99,11 +99,12 @@ export function Navbar() {
           </Link>
 
           {/* Desktop navigation */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-8 flex-1 justify-end">
             <SearchForm
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               onSearch={handleSearch}
+              className="max-w-2xl w-full mx-8"
             />
             <AuthButton />
           </div>

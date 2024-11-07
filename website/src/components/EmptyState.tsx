@@ -1,27 +1,36 @@
 import React from 'react';
-import { ShoppingBag } from 'lucide-react';
 
 interface EmptyStateProps {
-  icon?: React.ReactNode;
+  icon: React.ReactNode;
   title: string;
   description: string;
-  action?: React.ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = <ShoppingBag className="w-12 h-12 text-gray-400" />,
+  icon,
   title,
   description,
-  action
+  actionLabel,
+  onAction
 }) => {
   return (
     <div className="text-center py-12 bg-gray-50 rounded-xl">
-      <div className="mb-4">
-        {icon}
-      </div>
-      <h3 className="text-xl font-semibold text-gray-700 mb-2">{title}</h3>
-      <p className="text-gray-500 mb-6">{description}</p>
-      {action && <div className="mt-4">{action}</div>}
+      <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        {title}
+      </h3>
+      <p className="text-gray-500 mb-4">
+        {description}
+      </p>
+      {actionLabel && onAction && (
+        <button
+          onClick={onAction}
+          className="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors"
+        >
+          {actionLabel}
+        </button>
+      )}
     </div>
   );
 }; 

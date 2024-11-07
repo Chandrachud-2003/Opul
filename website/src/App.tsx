@@ -17,7 +17,7 @@ function App() {
           <Navbar />
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/platform/:slug" element={<PlatformPage />} />
+            <Route path="/platform/:id" element={<PlatformPage />} />
             <Route path="/profile/:id" element={<ProfilePage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/premium" element={<PremiumPage />} />
