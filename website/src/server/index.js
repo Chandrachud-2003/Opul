@@ -1,13 +1,15 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
+import './config/firebase.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import userRoutes from './routes/users.js';
 import authRoutes from './routes/auth.js';
 import platformRoutes from './routes/platforms.js';
+import referralRoutes from './routes/referrals.js';
 import { User } from './models/User.js';
-
-dotenv.config();
 
 const app = express();
 
@@ -41,6 +43,9 @@ app.use('/api/auth', authRoutes);
 
 // Mount the platform routes
 app.use('/api/platforms', platformRoutes);
+
+// Mount the referrals routes
+app.use('/api/referrals', referralRoutes);
 
 // Connect to MongoDB before starting the server
 mongoose.connect(process.env.MONGODB_URI)

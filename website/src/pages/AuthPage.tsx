@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../config/axios';
 import { getAuth, signInWithPopup, GoogleAuthProvider, getRedirectResult } from 'firebase/auth';
 import { createOrUpdateUser } from '../utils/userUtils';
+import InfoIcon from '../components/InfoIcon';
 
 export function AuthPage() {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const message = location.state?.message;
+  const returnPath = location.state?.returnPath;
   const { signInWithGoogle } = useAuth();
 
   interface GoogleAuthResult {
@@ -80,6 +84,18 @@ export function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-indigo-500 to-purple-600 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
+        {message && (
+          <div className="mb-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-lg">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <InfoIcon className="h-5 w-5 text-indigo-500" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-indigo-700">{message}</p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome to ReferralHub</h1>
           <p className="text-gray-600">
