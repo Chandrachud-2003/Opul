@@ -50,6 +50,7 @@ interface IPlatform extends Document {
   getReferralSteps: string[];    // New field
   getReferralLink?: string;      // New field - optional
   websiteUrl: string;      // New required field
+  benefitLogline: string;  // New field
 }
 
 const validationRulesSchema = new mongoose.Schema({
@@ -126,6 +127,12 @@ const platformSchema = new mongoose.Schema({
     required: [true, 'Benefit description is required'],
     minlength: [10, 'Benefit description must be at least 10 characters long'],
     maxlength: [500, 'Benefit description cannot exceed 500 characters']
+  },
+  benefitLogline: { 
+    type: String,
+    required: [true, 'Benefit logline is required'],
+    minlength: [5, 'Benefit logline must be at least 5 characters long'],
+    maxlength: [50, 'Benefit logline cannot exceed 50 characters']
   },
   claimSteps: { 
     type: [String],

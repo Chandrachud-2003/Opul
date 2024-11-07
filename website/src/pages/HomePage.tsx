@@ -28,6 +28,8 @@ interface Platform {
   icon: string;
   description: string;
   benefitDescription: string;
+  benefitLogline: string;
+  slug: string;
 }
 
 interface Performer {
@@ -293,7 +295,7 @@ export function HomePage() {
             {filteredPlatforms.map((platform) => (
               <Link
                 key={platform._id}
-                to={`/platform/${platform._id}`}
+                to={`/platform/${platform.slug}`}
                 className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow transform hover:scale-105"
               >
                 <div className="flex items-center gap-4 mb-4">
@@ -304,7 +306,7 @@ export function HomePage() {
                   />
                   <div>
                     <h3 className="font-semibold text-lg">{platform.name}</h3>
-                    <p className="text-indigo-600 font-medium">{platform.benefitDescription}</p>
+                    <p className="text-indigo-600 font-medium">{platform.benefitLogline}</p>
                   </div>
                 </div>
               </Link>

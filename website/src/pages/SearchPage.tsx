@@ -12,45 +12,14 @@ const categories = [
   { id: 'rewards', name: 'Rewards' },
 ];
 
-const platforms = [
-  {
-    id: 'chase-sapphire',
-    name: 'Chase Sapphire Preferred',
-    category: 'finance',
-    logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
-    deal: '60,000 Points Bonus',
-    topUser: {
-      name: 'Sarah M.',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=32&h=32',
-      score: 95
-    }
-  },
-  {
-    id: 'amex-platinum',
-    name: 'Amex Platinum',
-    category: 'finance',
-    logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
-    deal: '150,000 Points Bonus',
-    topUser: {
-      name: 'John D.',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=32&h=32',
-      score: 88
-    }
-  },
-  // Add more platforms...
-];
 
 interface Platform {
-  id: string;
+  _id: string;
   name: string;
   category: string;
-  logo: string;
-  deal: string;
-  topUser: {
-    name: string;
-    avatar: string;
-    score: number;
-  };
+  icon: string;
+  benefitLogline: string;
+  slug: string;
 }
 
 export function SearchPage() {
@@ -204,31 +173,19 @@ export function SearchPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 {platforms.map((platform) => (
                   <Link
-                    key={platform.id}
-                    to={`/platform/${platform.id}`}
+                    key={platform._id}
+                    to={`/platform/${platform.slug}`}
                     className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow"
                   >
                     <div className="flex items-center gap-4 mb-4">
                       <img
-                        src={platform.logo}
+                        src={platform.icon}
                         alt={platform.name}
                         className="w-16 h-16 rounded-lg"
                       />
                       <div>
                         <h3 className="font-semibold text-lg">{platform.name}</h3>
-                        <p className="text-indigo-600 font-medium">{platform.deal}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 mt-4">
-                      <img
-                        src={platform.topUser.avatar}
-                        alt={platform.topUser.name}
-                        className="w-6 h-6 rounded-full"
-                      />
-                      <span className="text-sm text-gray-600">{platform.topUser.name}</span>
-                      <div className="flex items-center gap-1 ml-auto">
-                        <Award className="w-4 h-4 text-yellow-500" />
-                        <span className="text-sm font-medium">{platform.topUser.score}</span>
+                        <p className="text-indigo-600 font-medium">{platform.benefitLogline}</p>
                       </div>
                     </div>
                   </Link>

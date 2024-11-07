@@ -1,5 +1,6 @@
 import express from 'express';
 import { Platform } from '../models/Platform.js';
+import { ReferralCode } from '../models/ReferralCode.js';
 
 const router = express.Router();
 
@@ -35,7 +36,7 @@ router.get('/', async (req, res) => {
     }
 
     const platforms = await Platform.find(query)
-      .select('name icon description benefitDescription category')
+      .select('name icon description benefitDescription benefitLogline category slug')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -53,6 +54,90 @@ router.get('/', async (req, res) => {
       message: 'Error fetching platforms', 
       error: error.message 
     });
+  }
+});
+
+// Add the slug route BEFORE the ID route
+router.get('/slug/:slug', async (req, res) => {
+  try {
+    console.log('Fetching platform with slug:', req.params.slug);
+    const platform = await Platform.findOne({ 
+      slug: req.params.slug,
+      isActive: true
+    })
+    .select('-validation -metadata')
+    .lean();
+      
+    if (!platform) {
+      console.log('Platform not found for slug:', req.params.slug);
+      return res.status(404).json({ message: 'Platform not found' });
+    }
+
+    console.log('Found platform:', platform);
+    // Fetch first 20 referral codes
+    const referralCodes = await ReferralCode.find({ 
+      platformId: platform._id,
+      status: 'ACTIVE'
+    })
+    .sort({ clicks: -1 })
+    .limit(20)
+    .populate('userId', 'displayName profilePicture credibilityScore')
+    .lean();
+
+    // Get total count for pagination
+    const totalCodes = await ReferralCode.countDocuments({
+      platformId: platform._id,
+      status: 'ACTIVE'
+    });
+
+    res.json({
+      platform,
+      referralCodes,
+      hasMore: totalCodes > referralCodes.length,
+      total: totalCodes
+    });
+  } catch (error) {
+    console.error('Error fetching platform:', error);
+    res.status(500).json({ message: 'Error fetching platform details' });
+  }
+});
+
+// Get platform by ID with referral codes
+router.get('/:id', async (req, res) => {
+  try {
+    const platform = await Platform.findById(req.params.id)
+      .select('-validation -metadata')
+      .lean();
+      
+    if (!platform) {
+      return res.status(404).json({ message: 'Platform not found' });
+    }
+
+    // Fetch first 20 referral codes
+    const referralCodes = await ReferralCode.find({ 
+      platformId: platform._id,
+      status: 'ACTIVE'
+    })
+    .sort({ clicks: -1 })
+    .limit(20)
+    .populate('userId', 'displayName profilePicture')
+    .lean();
+
+    // Get total count for pagination
+    const totalCodes = await ReferralCode.countDocuments({
+      platformId: platform._id,
+      status: 'ACTIVE'
+    });
+
+    res.json({
+      platform,
+      referralCodes,
+      hasMore: totalCodes > referralCodes.length,
+      total: totalCodes
+    });
+  } catch (error) {
+    console.error('Error fetching platform:', error);
+    res.status(500).json({ message: 'Error fetching platform details' });
   }
 });
 

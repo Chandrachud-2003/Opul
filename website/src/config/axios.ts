@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5001', // Make sure this matches your backend server
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001', // Make configurable
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -17,11 +17,18 @@ api.interceptors.request.use(request => {
 // Add response interceptor for debugging
 api.interceptors.response.use(
   response => {
-    console.log('Response:', response);
+    console.log('Response:', {
+      url: response.config.url,
+      method: response.config.method,
+      status: response.status,
+      data: response.data
+    });
     return response;
   },
   error => {
-    console.log('API Error:', {
+    console.error('API Error:', {
+      url: error.config?.url,
+      method: error.config?.method,
       message: error.message,
       status: error.response?.status,
       data: error.response?.data,

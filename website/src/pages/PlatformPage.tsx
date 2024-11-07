@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Copy, Check, ExternalLink, Award, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import api from '../config/axios';
+import { EmptyState } from '../components/EmptyState';
+import { AlertCircle, Gift } from 'lucide-react';
 
 // Type Definitions
 interface User {
@@ -39,6 +42,32 @@ interface PlatformData {
   steps: string[];
   topCodes: TopCode[];
   relatedDeals: RelatedDeal[];
+}
+
+// Update interfaces to match backend data
+interface ReferralCode {
+  _id: string;
+  code?: string;
+  referralLink?: string;
+  clicks: number;
+  status: string;
+  userId: {
+    displayName: string;
+    profilePicture: string;
+    credibilityScore?: number;
+  };
+}
+
+interface Platform {
+  _id: string;
+  name: string;
+  icon: string;
+  category: string;
+  description: string;
+  benefitDescription: string;
+  benefitLogline: string;
+  claimSteps: string[];
+  relatedDeals: { id: string; name: string; logo: string; benefit: string; }[];
 }
 
 // Initial Platform Data
@@ -105,125 +134,182 @@ const initialPlatformData: PlatformData = {
 };
 
 export function PlatformPage() {
-  const { slug } = useParams();
-  const [platform, setPlatform] = useState<PlatformData>(initialPlatformData);
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-
-  // New Form State Variables
+  const { id } = useParams<{ id: string }>();
+  const [platform, setPlatform] = useState<Platform | null>(null);
+  const [referralCodes, setReferralCodes] = useState<ReferralCode[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCodes, setTotalCodes] = useState(0);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<'code' | 'link'>('code');
-  const [inputValue, setInputValue] = useState<string>('');
-  const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(false);
-  const [flagged, setFlagged] = useState<boolean>(false);
+  const [inputValue, setInputValue] = useState('');
+  const [flagged, setFlagged] = useState(false);
 
-  const copyCode = (code: string, id: number) => {
-    navigator.clipboard.writeText(code);
+  // Fetch platform and referral codes data
+  useEffect(() => {
+    const fetchPlatformData = async () => {
+      try {
+        setLoading(true);
+        console.log('Fetching platform with slug:', id);
+        const response = await api.get(`/api/platforms/slug/${id}`);
+        console.log('Platform response:', response.data);
+        setPlatform(response.data.platform);
+        setReferralCodes(response.data.referralCodes);
+        setHasMore(response.data.hasMore);
+        setTotalCodes(response.data.total);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching platform:', err.response || err);
+        setError(err.response?.data?.message || 'Failed to load platform details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) {
+      fetchPlatformData();
+    }
+  }, [id]);
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="pt-24 pb-16 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error || !platform) {
+    return (
+      <div className="pt-24 pb-16">
+        <EmptyState
+          icon={<AlertCircle className="w-12 h-12 text-red-400" />}
+          title="Error Loading Platform"
+          description={error || 'Platform not found'}
+          action={
+            <Link
+              to="/"
+              className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Return Home
+            </Link>
+          }
+        />
+      </div>
+    );
+  }
+
+  // Render referral codes list
+  const renderReferralCodes = () => {
+    if (referralCodes.length === 0) {
+      return (
+        <EmptyState
+          icon={<Gift className="w-12 h-12 text-gray-400" />}
+          title="No Referral Codes Yet"
+          description="Be the first to share your referral code for this platform!"
+        />
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {referralCodes.map((item) => (
+          <div key={item._id} className="border border-gray-100 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <img
+                  src={item.userId.profilePicture || '/default-avatar.png'}
+                  alt={item.userId.displayName}
+                  className="w-10 h-10 rounded-full"
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{item.userId.displayName}</span>
+                    {(item.userId.credibilityScore ?? 0) >= 80 && (
+                      <Award className="w-4 h-4 text-indigo-600" />
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Score: {item.userId.credibilityScore || 0}
+                  </div>
+                </div>
+              </div>
+              <div className="text-sm text-gray-600">
+                {item.clicks} clicks
+              </div>
+            </div>
+            
+            {/* Code or Link display */}
+            <div className="flex items-center gap-4">
+              {item.code ? (
+                <code className="flex-1 bg-gray-50 p-3 rounded-lg font-mono">
+                  {item.code}
+                </code>
+              ) : (
+                <a
+                  href={item.referralLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-gray-50 p-3 rounded-lg font-mono text-indigo-600 hover:underline"
+                >
+                  {item.referralLink}
+                </a>
+              )}
+              <button
+                onClick={() => copyCode(item.code || item.referralLink || '', item._id)}
+                className="p-3 text-gray-600 hover:text-indigo-600 transition-colors"
+              >
+                {copiedId === item._id ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              </button>
+              {item.code && (
+                <a
+                  href={item.referralLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3 text-gray-600 hover:text-indigo-600 transition-colors"
+                >
+                  <ExternalLink className="w-5 h-5" />
+                </a>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Show More Button */}
+        {hasMore && (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => {/* Implement load more logic */}}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Show More ({totalCodes - referralCodes.length} remaining)
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const copyCode = async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Form Handlers
   const handleTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedType(e.target.value as 'code' | 'link');
-    setInputValue('');
-    setError('');
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInputValue(e.target.value);
-    setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    // Frontend Validation
-    if (selectedType === 'code') {
-      const codeRegex = /^[A-Z0-9]{6,10}$/;
-      if (!codeRegex.test(inputValue)) {
-        setError('Invalid code format. It should be 6-10 uppercase letters or numbers.');
-        setLoading(false);
-        return;
-      }
-    } else {
-      try {
-        new URL(inputValue);
-      } catch {
-        setError('Invalid URL format.');
-        setLoading(false);
-        return;
-      }
-    }
-
-    // Check for duplicates in existing topCodes
-    const duplicate = platform.topCodes.find(
-      (item) =>
-        item.type === selectedType &&
-        (selectedType === 'code' ? item.code === inputValue.toUpperCase() : item.link === inputValue)
-    );
-    if (duplicate) {
-      setError('This code/link already exists.');
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Replace with your actual backend API endpoint
-      const response = await fetch('/api/referrals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: selectedType,
-          value: inputValue
-        })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        // Handle backend errors
-        if (data.error === 'invalid_format') {
-          setError('Invalid code or link format.');
-        } else if (data.error === 'spoofed') {
-          setError('Spoofed link detected. Your profile has been flagged.');
-          setFlagged(true);
-        } else {
-          setError(data.message || 'An unknown error occurred.');
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Success: Add the new code/link to topCodes
-      const newCode: TopCode = {
-        id: platform.topCodes.length + 1, // Ideally, the backend should return the new ID
-        user: {
-          name: 'You',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64',
-          score: 100,
-          verified: true,
-          type: selectedType
-        },
-        code: selectedType === 'code' ? inputValue.toUpperCase() : '',
-        link: selectedType === 'link' ? inputValue : '',
-        clicks: 0,
-        success: '0%',
-        type: selectedType
-      };
-
-      setPlatform({
-        ...platform,
-        topCodes: [newCode, ...platform.topCodes]
-      });
-
-      // Reset form
-      setInputValue('');
-    } catch (error) {
-      setError('Failed to submit. Please try again.');
-    }
-    setLoading(false);
+    // Add your form submission logic here
   };
 
   return (
@@ -236,7 +322,7 @@ export function PlatformPage() {
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <div className="flex items-center gap-6 mb-6">
                 <img
-                  src={platform.logo}
+                  src={platform.icon}
                   alt={platform.name}
                   className="w-24 h-24 rounded-xl"
                 />
@@ -254,7 +340,7 @@ export function PlatformPage() {
                   <Info className="w-5 h-5" />
                   Current Offer
                 </div>
-                <p className="text-lg font-semibold">{platform.benefit}</p>
+                <p className="text-lg font-semibold">{platform.benefitDescription}</p>
               </div>
             </div>
 
@@ -262,7 +348,7 @@ export function PlatformPage() {
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <h2 className="text-xl font-bold mb-4">How to Claim</h2>
               <div className="space-y-4">
-                {platform.steps.map((step, index) => (
+                {platform.claimSteps.map((step, index) => (
                   <div key={index} className="flex items-start gap-4">
                     <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-indigo-600 font-medium">{index + 1}</span>
@@ -276,70 +362,7 @@ export function PlatformPage() {
             {/* Top Referral Codes */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <h2 className="text-xl font-bold mb-6">Top Referral Codes</h2>
-              <div className="space-y-4">
-                {platform.topCodes.map((item) => (
-                  <div key={item.id} className="border border-gray-100 rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={item.user.avatar}
-                          alt={item.user.name}
-                          className="w-10 h-10 rounded-full"
-                        />
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{item.user.name}</span>
-                            {item.user.verified && (
-                              <Award className="w-4 h-4 text-indigo-600" />
-                            )}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            Score: {item.user.score}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      {item.type === 'code' ? (
-                        <code className="flex-1 bg-gray-50 p-3 rounded-lg font-mono">
-                          {item.code}
-                        </code>
-                      ) : (
-                        <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 bg-gray-50 p-3 rounded-lg font-mono text-indigo-600 hover:underline"
-                        >
-                          {item.link}
-                        </a>
-                      )}
-                      <button
-                        onClick={() =>
-                          copyCode(item.type === 'code' ? item.code : item.link, item.id)
-                        }
-                        className="p-3 text-gray-600 hover:text-indigo-600 transition-colors"
-                      >
-                        {copiedId === item.id ? (
-                          <Check className="w-5 h-5 text-green-600" />
-                        ) : (
-                          <Copy className="w-5 h-5" />
-                        )}
-                      </button>
-                      {item.type === 'code' && (
-                        <a
-                          href={item.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-3 text-gray-600 hover:text-indigo-600 transition-colors"
-                        >
-                          <ExternalLink className="w-5 h-5" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {renderReferralCodes()}
             </div>
           </div>
 
