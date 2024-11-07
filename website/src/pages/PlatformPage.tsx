@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Copy, Check, ExternalLink, Award, Info } from 'lucide-react';
+import { Copy, Check, ExternalLink, Award, Info, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../config/axios';
 import { EmptyState } from '../components/EmptyState';
@@ -75,6 +75,7 @@ interface Platform {
   referralType: 'code' | 'link';
   getReferralSteps?: string[];
   getReferralLink?: string;
+  websiteUrl?: string;
 }
 
 // Initial Platform Data
@@ -163,6 +164,26 @@ interface UserReferral {
   createdAt: Date;
 }
 
+// Add URL validation helper
+const isValidUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.protocol === 'http:' || parsed.protocol === 'https:') &&
+      // Prevent IP addresses in URLs
+      !/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(parsed.hostname) &&
+      // Prevent unicode lookalikes
+      !/[\u0080-\uffff]/.test(url)
+    );
+  } catch {
+    return false;
+  }
+};
+
+interface FormValues {
+  referralValue: string;
+}
+
 export function PlatformPage() {
   const { id } = useParams<{ id: string }>();
   const [platform, setPlatform] = useState<Platform | null>(null);
@@ -176,9 +197,27 @@ export function PlatformPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [userReferrals, setUserReferrals] = useState<UserReferral[]>([]);
+  const [userReferrals, setUserReferrals] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [editingReferral, setEditingReferral] = useState<UserReferral | null>(null);
+  const [editingReferral, setEditingReferral] = useState<any>(null);
+  const [validationError, setValidationError] = useState<string>('');
+  const [validationRules, setValidationRules] = useState<any>(null);
+  const [referralValue, setReferralValue] = useState('');
+  const [availableReferrals, setAvailableReferrals] = useState<any[]>([]);
+  const [isLoadingReferrals, setIsLoadingReferrals] = useState(true);
+  const [page, setPage] = useState(1);
+  const LIMIT = 20;
+
+  // Add state for copy modal
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [selectedCode, setSelectedCode] = useState<any>(null);
+
+  // Function to handle copy and modal
+  const handleCopyCode = (code: any) => {
+    navigator.clipboard.writeText(code.code || code.referralLink);
+    setSelectedCode(code);
+    setShowCopyModal(true);
+  };
 
   useEffect(() => {
     const fetchPlatformData = async () => {
@@ -210,116 +249,147 @@ export function PlatformPage() {
 
   useEffect(() => {
     const fetchUserReferrals = async () => {
-      if (!user || !platform) return;
+      if (!user || !id) return;
       
       try {
-        const token = await user.getIdToken();
-        const response = await api.get(`/api/referrals/user/${platform._id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        const response = await api.get(`/api/referrals/user/${id}`);
         setUserReferrals(response.data.referrals);
       } catch (error) {
         console.error('Error fetching user referrals:', error);
       }
     };
 
-    if (platform) {
-      fetchUserReferrals();
-    }
-  }, [user, platform]);
+    fetchUserReferrals();
+  }, [user, id]);
 
-  const validateUrl = (url: string): boolean => {
+  useEffect(() => {
+    const fetchValidationRules = async () => {
+      if (!platform?._id) return;
+      try {
+        const response = await api.get(`/api/platforms/${platform._id}/validation`);
+        setValidationRules(response.data.validation);
+      } catch (error) {
+        console.error('Error fetching validation rules:', error);
+      }
+    };
+
+    fetchValidationRules();
+  }, [platform?._id]);
+
+  useEffect(() => {
+    const fetchAvailableReferrals = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoadingReferrals(true);
+        const response = await api.get(`/api/referrals/platform/${id}`, {
+          params: { page: 1, limit: LIMIT }
+        });
+        setAvailableReferrals(response.data.referralCodes);
+        setHasMore(response.data.total > response.data.referralCodes.length);
+      } catch (error) {
+        console.error('Error fetching available referrals:', error);
+      } finally {
+        setIsLoadingReferrals(false);
+      }
+    };
+
+    fetchAvailableReferrals();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchReferralCodes = async () => {
+      if (!id) return;
+      
+      try {
+        setIsLoadingReferrals(true);
+        const response = await api.get(`/api/referrals/platform/${id}`, {
+          params: { page: 1, limit: LIMIT }
+        });
+        setReferralCodes(response.data.referralCodes);
+        setHasMore(response.data.total > response.data.referralCodes.length);
+      } catch (error) {
+        console.error('Error fetching referral codes:', error);
+      } finally {
+        setIsLoadingReferrals(false);
+      }
+    };
+
+    fetchReferralCodes();
+  }, [id]);
+
+  const validateReferralValue = (value: string): boolean => {
+    if (!platform || !validationRules) return true;
+    
+    if (platform.referralType === 'link') {
+      const linkRules = validationRules.link;
+      if (!linkRules) return true;
+
+      // Check pattern if exists
+      if (linkRules.pattern) {
+        const regex = new RegExp(linkRules.pattern);
+        if (!regex.test(value)) {
+          setValidationError(linkRules.invalidMessage);
+          return false;
+        }
+      }
+    }
+    
+    setValidationError('');
+    return true;
+  };
+
+  const handleReferralSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setSubmitError('');
+    setSubmitSuccess(false);
+
     try {
-      new URL(url);
-      return true;
-    } catch {
-      return false;
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      if (!id) {
+        throw new Error('Platform slug not found');
+      }
+
+      const response = await api.post('/api/referrals', {
+        platformSlug: id,
+        referralValue,
+        type: platform?.referralType
+      });
+
+      setSubmitSuccess(true);
+      setReferralValue('');
+      
+      // Refresh user referrals
+      const updatedReferrals = [...userReferrals, response.data.referral];
+      setUserReferrals(updatedReferrals);
+      
+      toast.success('Referral submitted successfully!');
+    } catch (error: any) {
+      console.error('Error submitting referral:', error);
+      setSubmitError(error.response?.data?.message || 'Failed to submit referral');
+      toast.error('Failed to submit referral');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleReferralSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSubmitError('');
-    setSubmitSuccess(false);
-    setIsSubmitting(true);
-
-    const formData = new FormData(event.currentTarget);
-    const referralValue = formData.get('referralValue')?.toString().trim() || '';
-
-    if (!user) {
-      navigate('/auth', { 
-        state: { 
-          message: 'Please create an account to share your referral code/link',
-          returnPath: `/platform/${id}`
-        } 
-      });
-      return;
-    }
-
-    // Check referral limit
-    if (userReferrals.length >= 2 && !isEditing) {
-      setSubmitError('You can only have 2 active referrals per platform');
-      setIsSubmitting(false);
-      return;
-    }
-
-    // Validate and submit logic...
+  // Add function to load more referrals
+  const loadMoreReferrals = async () => {
     try {
-      const endpoint = isEditing ? 
-        `/api/referrals/${editingReferral?._id}` : 
-        '/api/referrals';
-
-      const method = isEditing ? 'PUT' : 'POST';
-
-      const apiMethod = method.toLowerCase() as 'get' | 'post' | 'put' | 'delete';
-      if (!platform) return;
-      
-      // Get platform validation rules
-      const platformResponse = await api.get(`/api/platforms/${platform._id}/validation`);
-      const validationRules = platformResponse.data.validation;
-
-      if (platform.referralType === 'link') {
-        // Basic URL validation
-        try {
-          new URL(referralValue);
-        } catch {
-          setSubmitError('Please enter a valid URL');
-          setIsSubmitting(false);
-          return;
-        }
-
-        // Platform-specific link validation
-        if (validationRules?.link?.pattern) {
-          const regex = new RegExp(validationRules.link.pattern);
-          if (!regex.test(referralValue)) {
-            setSubmitError(validationRules.link.invalidMessage || 'Invalid referral link format');
-            setIsSubmitting(false);
-            return;
-          }
-        }
-      }
-
-      const response = await api[apiMethod](endpoint, {
-        platformId: platform._id,
-        userId: user.uid,
-        referralValue,
-        type: platform.referralType
+      const nextPage = page + 1;
+      const response = await api.get(`/api/referrals/platform/${id}`, {
+        params: { page: nextPage, limit: LIMIT }
       });
-
-      if (response.data.success) {
-        toast.success(isEditing ? 'Referral updated successfully!' : 'Referral submitted successfully!');
-        // Refresh user referrals
-        const updatedReferrals = await api.get(`/api/referrals/user/${platform._id}`);
-        setUserReferrals(updatedReferrals.data.referrals);
-        setIsEditing(false);
-        setEditingReferral(null);
-      }
-    } catch (error: any) {
-      setSubmitError(error.response?.data?.message || 'Failed to submit referral');
-    } finally {
-      setIsSubmitting(false);
+      
+      setReferralCodes(prev => [...prev, ...response.data.referralCodes]);
+      setHasMore(response.data.total > referralCodes.length + response.data.referralCodes.length);
+      setPage(nextPage);
+    } catch (error) {
+      console.error('Error loading more referrals:', error);
+      toast.error('Failed to load more referrals');
     }
   };
 
@@ -378,7 +448,11 @@ export function PlatformPage() {
             {/* Referral Codes Section */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <h2 className="text-xl font-semibold mb-6">Available Referral Codes</h2>
-              {referralCodes.length === 0 ? (
+              {isLoadingReferrals ? (
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                </div>
+              ) : referralCodes.length === 0 ? (
                 <EmptyState
                   icon={<Gift className="w-12 h-12 text-gray-400" />}
                   title="No Referral Codes Yet"
@@ -387,7 +461,7 @@ export function PlatformPage() {
               ) : (
                 <div className="space-y-4">
                   {referralCodes.map((code) => (
-                    <div key={code._id} className="border rounded-lg p-4">
+                    <div key={code._id} className="border rounded-lg p-4 hover:border-indigo-200 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <img
@@ -401,15 +475,37 @@ export function PlatformPage() {
                               {(code.userId.credibilityScore ?? 0) >= 80 && (
                                 <Award className="w-4 h-4 text-indigo-600" />
                               )}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              Score: {code.userId.credibilityScore}
+                              <span className="text-sm px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">
+                                Score: {code.userId.credibilityScore || 0}
+                              </span>
                             </div>
                           </div>
                         </div>
-                        <div className="text-sm text-gray-600">
-                          {code.clicks} clicks
-                        </div>
+                        
+                        {platform?.referralType === 'link' ? (
+                          <a
+                            href={code.referralLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                          >
+                            <ExternalLink className="w-4 h-4 mr-2" />
+                            Claim
+                          </a>
+                        ) : (
+                          <div className="flex items-center gap-3">
+                            <div className="px-3 py-1.5 bg-gray-100 rounded font-mono text-sm">
+                              {code.code}
+                            </div>
+                            <button
+                              onClick={() => handleCopyCode(code)}
+                              className="p-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+                              title="Copy Code"
+                            >
+                              <Copy className="w-5 h-5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -417,6 +513,55 @@ export function PlatformPage() {
               )}
             </div>
           </div>
+
+          {/* Copy Success Modal */}
+          {showCopyModal && selectedCode && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 relative">
+                <button
+                  onClick={() => setShowCopyModal(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                
+                <div className="text-center">
+                  <img
+                    src={platform?.icon}
+                    alt={platform?.name}
+                    className="w-16 h-16 rounded-lg mx-auto mb-4"
+                  />
+                  <h3 className="text-xl font-semibold mb-2">{platform?.benefitLogline}</h3>
+                  
+                  <div className="bg-gray-50 p-4 rounded-lg my-4">
+                    <p className="text-sm text-gray-600 mb-2">Your promo code:</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="font-mono text-lg">{selectedCode.code}</span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(selectedCode.code)}
+                        className="p-1.5 text-indigo-600 hover:text-indigo-700"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="mt-2 flex items-center justify-center gap-1 text-sm text-gray-600">
+                      <Award className="w-4 h-4 text-indigo-600" />
+                      <span>Score: {selectedCode.userId.credibilityScore || 0}</span>
+                    </div>
+                  </div>
+                  
+                  <a
+                    href={selectedCode.referralLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-3 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-center"
+                  >
+                    Claim
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Right Sidebar */}
           <div className="space-y-6">
@@ -438,12 +583,11 @@ export function PlatformPage() {
             {/* Add Your Referral Code/Link */}
             <div className="bg-white p-6 rounded-xl shadow-sm">
               <h3 className="text-lg font-semibold mb-4">
-                {isEditing ? 'Edit Your Referral' : 'Add Your Referral'}
+                {userReferrals.length > 0 ? 'Your Referrals' : 'Add Your Referral'}
               </h3>
 
-              {user && userReferrals.length > 0 && (
-                <div className="mb-6 space-y-4">
-                  <h4 className="text-sm font-medium text-gray-700">Your Active Referrals:</h4>
+              {user && userReferrals.length > 0 ? (
+                <div className="space-y-4">
                   {userReferrals.map((referral) => (
                     <div key={referral._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm text-gray-600">
@@ -463,8 +607,7 @@ export function PlatformPage() {
                           onClick={async () => {
                             try {
                               await api.delete(`/api/referrals/${referral._id}`);
-                              const updatedReferrals = userReferrals.filter(r => r._id !== referral._id);
-                              setUserReferrals(updatedReferrals);
+                              setUserReferrals(userReferrals.filter(r => r._id !== referral._id));
                               toast.success('Referral deleted successfully!');
                             } catch (error) {
                               toast.error('Failed to delete referral');
@@ -478,23 +621,30 @@ export function PlatformPage() {
                     </div>
                   ))}
                 </div>
-              )}
-
-              {(!user || userReferrals.length < 2 || isEditing) && (
+              ) : (
                 <form onSubmit={handleReferralSubmit} className="space-y-4">
                   <div className="relative">
                     <input
                       name="referralValue"
-                      type={platform.referralType === 'code' ? 'text' : 'url'}
-                      defaultValue={editingReferral?.code || editingReferral?.referralLink || ''}
+                      type={platform?.referralType === 'code' ? 'text' : 'url'}
                       placeholder={
-                        platform.referralType === 'code'
+                        platform?.referralType === 'code'
                           ? 'Enter your referral code'
                           : 'Enter your referral link'
                       }
+                      onChange={(e) => {
+                        setReferralValue(e.target.value);
+                        validateReferralValue(e.target.value);
+                      }}
                       disabled={isSubmitting}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
                     />
+                    {validationError && (
+                      <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                        <span className="inline-block w-4 h-4">⚠️</span>
+                        {validationError}
+                      </p>
+                    )}
                     {submitError && (
                       <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                         <span className="inline-block w-4 h-4">⚠️</span>
@@ -509,32 +659,13 @@ export function PlatformPage() {
                     )}
                     <button 
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || (platform?.referralType === 'link' && !isValidUrl(referralValue))}
                       className="mt-3 w-full bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
                     >
-                      {isSubmitting ? 'Submitting...' : isEditing ? 'Update Referral' : 'Submit Referral'}
+                      {isSubmitting ? 'Submitting...' : 'Submit Referral'}
                     </button>
-                    {isEditing && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsEditing(false);
-                          setEditingReferral(null);
-                        }}
-                        className="mt-2 w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-                      >
-                        Cancel Edit
-                      </button>
-                    )}
                   </div>
                 </form>
-              )}
-
-              {user && userReferrals.length >= 2 && !isEditing && (
-                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
-                  You have reached the maximum number of referrals for this platform (2).
-                  You can edit or delete existing referrals above.
-                </div>
               )}
             </div>
 

@@ -14,17 +14,32 @@ const createReferralLimit = rateLimit({
   message: 'Too many referral submissions, please try again later'
 });
 
-router.post('/', createReferralLimit, async (req, res) => {
+router.post('/', authMiddleware, createReferralLimit, async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const { platformId, userId, referralValue, type } = req.body;
+    const { platformSlug, userId, referralValue, type } = req.body;
+
+    // Validate required fields
+    if (!platformSlug || !referralValue || !type) {
+      await session.abortTransaction();
+      return res.status(400).json({ 
+        message: 'Missing required fields: platformSlug, referralValue, and type are required' 
+      });
+    }
+
+    // Get the user from the auth middleware
+    const user = req.user;
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(401).json({ message: 'User not authenticated' });
+    }
 
     // Check for existing active referral
     const existingReferral = await ReferralCode.findOne({
-      platformId,
-      userId,
+      platformSlug,
+      userId: user._id,
       status: 'ACTIVE'
     }).session(session);
 
@@ -37,32 +52,14 @@ router.post('/', createReferralLimit, async (req, res) => {
 
     // Create new referral
     const referral = new ReferralCode({
-      platformId,
-      userId,
+      platformSlug,
+      userId: user._id,
       [type === 'code' ? 'code' : 'referralLink']: referralValue,
       sourceType: 'USER_SUBMITTED',
-      status: 'ACTIVE',
-      metadata: {
-        lastUpdated: new Date(),
-        version: 1
-      }
+      status: 'ACTIVE'
     });
 
     await referral.save({ session });
-
-    // Update user's referral list
-    await User.findByIdAndUpdate(
-      userId,
-      { $push: { referralCodes: referral._id } },
-      { session }
-    );
-
-    // Update platform's referral list
-    await Platform.findByIdAndUpdate(
-      platformId,
-      { $push: { referralCodes: referral._id } },
-      { session }
-    );
 
     await session.commitTransaction();
     res.status(201).json({ success: true, referral });
@@ -78,9 +75,9 @@ router.post('/', createReferralLimit, async (req, res) => {
 });
 
 // Add this new route to check for existing referrals
-router.get('/check/:platformId/:userId', async (req, res) => {
+router.get('/check/:platformSlug/:userId', async (req, res) => {
   try {
-    const { platformId, userId } = req.params;
+    const { platformSlug, userId } = req.params;
     
     const user = await User.findOne({ uid: userId });
     if (!user) {
@@ -88,7 +85,7 @@ router.get('/check/:platformId/:userId', async (req, res) => {
     }
 
     const existingReferral = await ReferralCode.findOne({
-      platformId,
+      platformSlug,
       userId: user._id,
       status: 'ACTIVE'
     });
@@ -101,13 +98,13 @@ router.get('/check/:platformId/:userId', async (req, res) => {
 });
 
 // Add these new routes
-router.get('/user/:platformId', authMiddleware, async (req, res) => {
+router.get('/user/:platformSlug', authMiddleware, async (req, res) => {
   try {
-    const { platformId } = req.params;
-    const userId = req.user._id; // Now req.user will be populated
+    const { platformSlug } = req.params;
+    const userId = req.user._id;
 
     const referrals = await ReferralCode.find({
-      platformId,
+      platformSlug,
       userId,
       status: 'ACTIVE'
     }).sort({ createdAt: -1 });
@@ -123,7 +120,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { referralValue, type } = req.body;
-    const userId = req.user._id; // Now req.user will be populated
+    const userId = req.user._id;
 
     const referral = await ReferralCode.findOne({
       _id: id,
@@ -154,7 +151,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user._id; // Now req.user will be populated
+    const userId = req.user._id;
 
     const referral = await ReferralCode.findOneAndUpdate(
       { _id: id, userId },
@@ -170,6 +167,43 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Error deleting referral:', error);
     res.status(500).json({ message: 'Error deleting referral' });
+  }
+});
+
+// Add this route to get all active referrals for a platform
+router.get('/platform/:platformSlug', async (req, res) => {
+  try {
+    const { platformSlug } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+    
+    const [referrals, total] = await Promise.all([
+      ReferralCode.find({
+        platformSlug,
+        status: 'ACTIVE'
+      })
+      .populate('userId', 'displayName profilePicture credibilityScore')
+      .sort({ clicks: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+      
+      ReferralCode.countDocuments({
+        platformSlug,
+        status: 'ACTIVE'
+      })
+    ]);
+
+    res.json({ 
+      referralCodes: referrals,
+      total,
+      page,
+      hasMore: total > skip + referrals.length
+    });
+  } catch (error) {
+    console.error('Error fetching platform referrals:', error);
+    res.status(500).json({ message: 'Error fetching referrals' });
   }
 });
 

@@ -141,4 +141,25 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Add this new route
+router.get('/:id/validation', async (req, res) => {
+  try {
+    const platform = await Platform.findById(req.params.id)
+      .select('validation referralType')
+      .lean();
+      
+    if (!platform) {
+      return res.status(404).json({ message: 'Platform not found' });
+    }
+
+    res.json({
+      validation: platform.validation,
+      referralType: platform.referralType
+    });
+  } catch (error) {
+    console.error('Error fetching platform validation:', error);
+    res.status(500).json({ message: 'Error fetching platform validation' });
+  }
+});
+
 export default router; 

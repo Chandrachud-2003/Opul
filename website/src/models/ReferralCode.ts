@@ -11,7 +11,7 @@ interface IFeedback {
 }
 
 interface IReferralCode extends Document {
-  platformId: mongoose.Types.ObjectId;
+  platformSlug: string;
   code?: string;
   referralLink?: string;
   sourceType: SourceType;
@@ -41,7 +41,12 @@ const feedbackSchema = new mongoose.Schema<IFeedback>(
 );
 
 const referralCodeSchema = new mongoose.Schema({
-  platformId: { type: mongoose.Schema.Types.ObjectId, ref: 'Platform', required: true },
+  platformSlug: { 
+    type: String, 
+    ref: 'Platform', 
+    required: true,
+    index: true 
+  },
   code: String,
   referralLink: String,
   sourceType: { 
@@ -68,7 +73,7 @@ const referralCodeSchema = new mongoose.Schema({
   feedback: [feedbackSchema],
 });
 
-referralCodeSchema.index({ platformId: 1, status: 1, clicks: -1 });
+referralCodeSchema.index({ platformSlug: 1, status: 1, clicks: -1 });
 referralCodeSchema.index({ userId: 1, status: 1 });
 
 export const ReferralCode = mongoose.model<IReferralCode>('ReferralCode', referralCodeSchema); 

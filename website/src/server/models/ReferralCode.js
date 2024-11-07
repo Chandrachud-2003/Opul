@@ -1,44 +1,51 @@
 import mongoose from 'mongoose';
 
-const feedbackSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    isSuccess: { type: Boolean, required: true },
-    comment: { type: String },
-    createdAt: { type: Date, default: Date.now },
-  },
-  { _id: false }
-);
-
 const referralCodeSchema = new mongoose.Schema({
-  platformId: { type: mongoose.Schema.Types.ObjectId, ref: 'Platform', required: true },
+  platformSlug: {
+    type: String,
+    required: [true, 'Platform slug is required'],
+    index: true
+  },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   code: String,
   referralLink: String,
-  sourceType: { 
-    type: String, 
-    enum: ['SCRAPED', 'USER_SUBMITTED'], 
-    required: true 
+  clicks: {
+    type: Number,
+    default: 0
   },
-  sourceUrl: String,
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-  status: { 
-    type: String, 
-    enum: ['ACTIVE', 'EXPIRED', 'BLOCKED'], 
-    default: 'ACTIVE' 
+  status: {
+    type: String,
+    enum: ['ACTIVE', 'EXPIRED', 'DELETED'],
+    default: 'ACTIVE'
   },
-  clicks: { type: Number, default: 0 },
-  lastClickedAt: Date,
-  createdAt: { type: Date, default: Date.now },
-  expiresAt: Date,
+  sourceType: {
+    type: String,
+    enum: ['USER_SUBMITTED', 'SYSTEM_GENERATED'],
+    required: true
+  },
   metadata: {
-    lastVerified: Date,
     lastUpdated: { type: Date, default: Date.now },
-    version: { type: Number, default: 1 },
-  },
-  feedback: [feedbackSchema],
+    version: { type: Number, default: 1 }
+  }
+}, {
+  timestamps: true
 });
 
-referralCodeSchema.index({ platformId: 1, status: 1, clicks: -1 });
+// Ensure either code or referralLink is provided
+referralCodeSchema.pre('save', function(next) {
+  if (!this.code && !this.referralLink) {
+    next(new Error('Either code or referralLink must be provided'));
+  }
+  next();
+});
+
+// Add indexes
+referralCodeSchema.index({ platformSlug: 1, status: 1 });
 referralCodeSchema.index({ userId: 1, status: 1 });
+referralCodeSchema.index({ clicks: -1 });
 
 export const ReferralCode = mongoose.model('ReferralCode', referralCodeSchema); 
