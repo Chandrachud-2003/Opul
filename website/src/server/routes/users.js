@@ -30,6 +30,17 @@ router.get('/:identifier', async (req, res) => {
 
     console.log('User found:', user);
 
+    // Fetch active referral codes for the user
+    const referralCodes = await ReferralCode.find({
+      userId: user._id,
+      status: 'ACTIVE'
+    })
+    .populate({
+      path: 'platformId',
+      select: 'name icon benefitLogline category'
+    })
+    .lean();
+
     // Format the response
     const response = {
       uid: user.uid,
@@ -44,7 +55,20 @@ router.get('/:identifier', async (req, res) => {
         totalEarnings: 0,
         lastClickedAt: null
       },
-      referralCodes: [] // Add referral codes logic here if needed
+      referralCodes: referralCodes.map(code => ({
+        id: code._id,
+        platform: {
+          name: code.platformId.name,
+          logo: code.platformId.icon,
+          category: code.platformId.category,
+          benefitLogline: code.platformId.benefitLogline
+        },
+        code: code.code,
+        referralLink: code.referralLink,
+        clicks: code.clicks || 0,
+        earnings: '$0.00', // Add actual earnings calculation if available
+        success: '0%' // Add actual success rate calculation if available
+      }))
     };
 
     res.json(response);

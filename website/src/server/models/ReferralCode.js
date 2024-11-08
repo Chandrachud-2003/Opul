@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const referralCodeSchema = new mongoose.Schema({
+  platformId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Platform',
+    required: true
+  },
   platformSlug: {
     type: String,
     required: [true, 'Platform slug is required'],

@@ -13,6 +13,7 @@ interface Platform {
   name: string;
   logo: string;
   category: string;
+  benefitLogline: string;
 }
 
 interface ReferralCodeData {
@@ -82,7 +83,8 @@ const userData: UserData = {
       platform: {
         name: 'Chase Sapphire Preferred',
         logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
-        category: 'Finance'
+        category: 'Finance',
+        benefitLogline: 'Earn rewards for every referral'
       },
       code: 'SARAHM2024',
       clicks: 156,
@@ -95,7 +97,8 @@ const userData: UserData = {
       platform: {
         name: 'Amex Platinum',
         logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
-        category: 'Finance'
+        category: 'Finance',
+        benefitLogline: 'Earn rewards for every referral'
       },
       code: 'SARAHM-AMEX',
       clicks: 98,
@@ -197,35 +200,39 @@ const ReferralCode: React.FC<ReferralCodeProps> = ({ code, referralLink }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  if (referralLink) {
+    return (
+      <a
+        href={referralLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+      >
+        <ExternalLink className="w-4 h-4 mr-2" />
+        Claim Offer
+      </a>
+    );
+  }
+
   return (
-    <div className="flex items-center gap-4">
-      <code className="flex-1 bg-gray-50 p-3 rounded-lg font-mono">
+    <div className="flex items-center gap-2">
+      <code className="px-3 py-2 bg-gray-50 rounded-lg font-mono flex-1">
         {code}
       </code>
       <button
         onClick={() => handleCopy(code)}
-        className="p-3 text-gray-600 hover:text-indigo-600 transition-colors relative group"
+        className="p-2 text-gray-600 hover:text-indigo-600 transition-colors relative group"
+        aria-label={copied ? 'Copied!' : 'Copy code'}
       >
         {copied ? (
           <CheckCircle className="w-5 h-5 text-green-500" />
         ) : (
           <Copy className="w-5 h-5" />
         )}
-        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
           {copied ? 'Copied!' : 'Copy code'}
         </span>
       </button>
-      <a
-        href={referralLink}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="p-3 text-gray-600 hover:text-indigo-600 transition-colors relative group"
-      >
-        <ExternalLink className="w-5 h-5" />
-        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-          Open link
-        </span>
-      </a>
     </div>
   );
 };
@@ -412,22 +419,15 @@ export const ProfilePage: React.FC = () => {
                           <img
                             src={item.platform.logo}
                             alt={item.platform.name}
-                            className="w-12 h-12 rounded-lg"
+                            className="w-12 h-12 rounded-lg object-cover"
                           />
                           <div>
                             <h3 className="font-medium">{item.platform.name}</h3>
-                            <div className="text-sm text-gray-600">
-                              {item.platform.category}
-                            </div>
+                            <p className="text-sm text-gray-600">{item.platform.benefitLogline}</p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-green-600 font-medium">
-                            {item.earnings}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {item.clicks} clicks • {item.success} success
-                          </div>
+                        <div className="text-right text-sm text-gray-600">
+                          {item.clicks} clicks
                         </div>
                       </div>
                       <ReferralCode code={item.code} referralLink={item.referralLink} />

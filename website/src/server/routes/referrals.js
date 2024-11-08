@@ -51,7 +51,13 @@ router.post('/', authMiddleware, createReferralLimit, async (req, res) => {
     }
 
     // Create new referral
+    const platform = await Platform.findOne({ slug: platformSlug });
+    if (!platform) {
+      return res.status(404).json({ message: 'Platform not found' });
+    }
+
     const referral = new ReferralCode({
+      platformId: platform._id,
       platformSlug,
       userId: user._id,
       [type === 'code' ? 'code' : 'referralLink']: referralValue,
