@@ -212,6 +212,14 @@ export function PlatformPage() {
   const [showCopyModal, setShowCopyModal] = useState(false);
   const [selectedCode, setSelectedCode] = useState<any>(null);
 
+  // Add state for delete confirmation modal
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [referralToDelete, setReferralToDelete] = useState<ReferralCode | null>(null);
+
+  // Add these state variables
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteSuccess, setDeleteSuccess] = useState(false);
+
   // Function to handle copy and modal
   const handleCopyCode = (code: any) => {
     navigator.clipboard.writeText(code.code || code.referralLink);
@@ -219,29 +227,70 @@ export function PlatformPage() {
     setShowCopyModal(true);
   };
 
-  useEffect(() => {
-    const fetchPlatformData = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get(`/api/platforms/slug/${id}`);
-        console.log('Platform response:', response.data);
-        
-        if (response.data.platform) {
-          setPlatform(response.data.platform);
-          setReferralCodes(response.data.referralCodes || []);
-          setHasMore(response.data.hasMore || false);
-          setTotalCodes(response.data.total || 0);
-        } else {
-          setError('Platform not found');
-        }
-      } catch (err) {
-        console.error('Error fetching platform:', err);
-        setError('Failed to load platform details');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Add handler for delete button click
+  const handleDeleteClick = (referral: ReferralCode) => {
+    setReferralToDelete(referral);
+    setDeleteModalOpen(true);
+  };
 
+  // Add delete handler
+  const handleConfirmDelete = async () => {
+    if (!referralToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const response = await api.delete(`/api/referrals/${referralToDelete._id}`);
+      
+      if (response.data.success) {
+        setDeleteSuccess(true);
+        toast.success('Referral code deleted successfully');
+        
+        // Remove the deleted code from the local state
+        setUserReferrals(prevReferrals => 
+          prevReferrals.filter(r => r._id !== referralToDelete._id)
+        );
+
+        // Close modal after short delay
+        setTimeout(() => {
+          setDeleteModalOpen(false);
+          setReferralToDelete(null);
+          setDeleteSuccess(false);
+          
+          // Reload the platform data to ensure everything is in sync
+          fetchPlatformData();
+        }, 1500);
+      }
+    } catch (error) {
+      console.error('Error deleting referral:', error);
+      toast.error('Failed to delete referral code');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const fetchPlatformData = async () => {
+    try {
+      setLoading(true);
+      const response = await api.get(`/api/platforms/slug/${id}`);
+      console.log('Platform response:', response.data);
+      
+      if (response.data.platform) {
+        setPlatform(response.data.platform);
+        setReferralCodes(response.data.referralCodes || []);
+        setHasMore(response.data.hasMore || false);
+        setTotalCodes(response.data.total || 0);
+      } else {
+        setError('Platform not found');
+      }
+    } catch (err) {
+      console.error('Error fetching platform:', err);
+      setError('Failed to load platform details');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     if (id) {
       fetchPlatformData();
     }
@@ -604,15 +653,7 @@ export function PlatformPage() {
                           Edit
                         </button>
                         <button
-                          onClick={async () => {
-                            try {
-                              await api.delete(`/api/referrals/${referral._id}`);
-                              setUserReferrals(userReferrals.filter(r => r._id !== referral._id));
-                              toast.success('Referral deleted successfully!');
-                            } catch (error) {
-                              toast.error('Failed to delete referral');
-                            }
-                          }}
+                          onClick={() => handleDeleteClick(referral)}
                           className="text-sm text-red-600 hover:text-red-700"
                         >
                           Delete
@@ -709,6 +750,80 @@ export function PlatformPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalOpen && referralToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 relative animate-fade-in">
+            {deleteSuccess ? (
+              // Success state
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-green-600">Successfully Deleted!</h3>
+                <p className="text-sm text-gray-600 mt-2">The referral code has been removed.</p>
+              </div>
+            ) : (
+              // Confirmation state
+              <>
+                <button
+                  onClick={() => setDeleteModalOpen(false)}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+                  disabled={isDeleting}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+                
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-8 h-8 text-red-600" />
+                  </div>
+                  
+                  <h3 className="text-lg font-semibold mb-2">Delete Referral Code?</h3>
+                  
+                  <div className="text-sm text-gray-600 mb-6 space-y-2">
+                    <p>Are you sure you want to delete this referral?</p>
+                    <p className="font-mono bg-gray-50 p-2 rounded">
+                      {referralToDelete.code || referralToDelete.referralLink}
+                    </p>
+                    <p className="text-red-600">
+                      This action cannot be undone. All associated analytics and tracking data will be permanently removed.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setDeleteModalOpen(false)}
+                      className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition-colors"
+                      disabled={isDeleting}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleConfirmDelete}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:bg-red-400"
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Deleting...
+                        </span>
+                      ) : (
+                        'Delete'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

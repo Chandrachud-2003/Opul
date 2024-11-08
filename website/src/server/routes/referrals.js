@@ -155,24 +155,57 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 router.delete('/:id', authMiddleware, async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { id } = req.params;
-    const userId = req.user._id;
+    const firebaseUid = req.user.uid;
 
-    const referral = await ReferralCode.findOneAndUpdate(
-      { _id: id, userId },
-      { status: 'EXPIRED' },
-      { new: true }
-    );
-
-    if (!referral) {
-      return res.status(404).json({ message: 'Referral not found' });
+    // First, find the user by their Firebase UID
+    const user = await User.findOne({ uid: firebaseUid }).session(session);
+    if (!user) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    res.json({ success: true });
+    // Then find the referral code using the user's MongoDB _id
+    const referral = await ReferralCode.findOne({ 
+      _id: id,
+      userId: user._id 
+    }).session(session);
+
+    if (!referral) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Referral not found or unauthorized' });
+    }
+
+    // 1. Remove reference from Platform
+    await Platform.updateOne(
+      { _id: referral.platformId },
+      { $pull: { referralCodes: referral._id } }
+    ).session(session);
+
+    // 2. Remove reference from User
+    await User.updateOne(
+      { _id: user._id },
+      { $pull: { referralCodes: referral._id } }
+    ).session(session);
+
+    // 3. Delete the referral code
+    await ReferralCode.deleteOne({ _id: id }).session(session);
+
+    await session.commitTransaction();
+    res.json({ 
+      success: true,
+      message: 'Referral code deleted successfully'
+    });
   } catch (error) {
+    await session.abortTransaction();
     console.error('Error deleting referral:', error);
     res.status(500).json({ message: 'Error deleting referral' });
+  } finally {
+    session.endSession();
   }
 });
 
