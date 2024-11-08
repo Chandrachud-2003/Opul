@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Award, TrendingUp, Users, DollarSign, ExternalLink, Copy, CheckCircle, LogOut } from 'lucide-react';
+import { Award, TrendingUp, Users, DollarSign, ExternalLink, Copy, CheckCircle, LogOut, X, Check } from 'lucide-react';
 import { useSpring, animated } from '@react-spring/web';
 import { PlusCircle } from 'lucide-react';
 import { LoadingPlaceholder } from '../components/LoadingPlaceholder';
 import { EmptyState } from '../components/EmptyState';
 import { useAuth } from '../contexts/AuthContext'; // Adjust the import path as needed
 import api from '../config/axios'; // Adjust the import path based on your project structure
+import { ReferralFeedbackModal } from '../components/ReferralFeedbackModal';
 
 // Type definitions
 interface Platform {
@@ -14,6 +15,7 @@ interface Platform {
   logo: string;
   category: string;
   benefitLogline: string;
+  websiteUrl?: string;
 }
 
 interface ReferralCodeData {
@@ -62,6 +64,8 @@ interface CredibilityScoreProps {
 interface ReferralCodeProps {
   code: string;
   referralLink: string;
+  platformWebsiteUrl?: string;
+  onExternalNavigation: (url: string) => void;
 }
 
 const userData: UserData = {
@@ -84,7 +88,8 @@ const userData: UserData = {
         name: 'Chase Sapphire Preferred',
         logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
         category: 'Finance',
-        benefitLogline: 'Earn rewards for every referral'
+        benefitLogline: 'Earn rewards for every referral',
+        websiteUrl: 'https://www.chase.com/sapphire-preferred'
       },
       code: 'SARAHM2024',
       clicks: 156,
@@ -98,7 +103,8 @@ const userData: UserData = {
         name: 'Amex Platinum',
         logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
         category: 'Finance',
-        benefitLogline: 'Earn rewards for every referral'
+        benefitLogline: 'Earn rewards for every referral',
+        websiteUrl: 'https://www.americanexpress.com/platinum-card'
       },
       code: 'SARAHM-AMEX',
       clicks: 98,
@@ -191,49 +197,113 @@ const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ className = '' }) => {
   );
 };
 
-const ReferralCode: React.FC<ReferralCodeProps> = ({ code, referralLink }) => {
+const ReferralCode: React.FC<ReferralCodeProps> = ({ code, referralLink, platformWebsiteUrl, onExternalNavigation }) => {
   const [copied, setCopied] = useState(false);
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [currentPlatform, setCurrentPlatform] = useState<Platform | null>(null);
 
-  const handleCopy = async (text: string) => {
+  const handleCopy = async (text: string, platform?: Platform | null) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
+    if (platform) setCurrentPlatform(platform);
     setTimeout(() => setCopied(false), 2000);
   };
 
   if (referralLink) {
     return (
-      <a
-        href={referralLink}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        onClick={() => onExternalNavigation(referralLink)}
         className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
       >
         <ExternalLink className="w-4 h-4 mr-2" />
         Claim Offer
-      </a>
+      </button>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <code className="px-3 py-2 bg-gray-50 rounded-lg font-mono flex-1">
-        {code}
-      </code>
-      <button
-        onClick={() => handleCopy(code)}
-        className="p-2 text-gray-600 hover:text-indigo-600 transition-colors relative group"
-        aria-label={copied ? 'Copied!' : 'Copy code'}
-      >
-        {copied ? (
-          <CheckCircle className="w-5 h-5 text-green-500" />
-        ) : (
-          <Copy className="w-5 h-5" />
+    <>
+      <div className="flex items-center gap-2">
+        <code className="px-3 py-2 bg-gray-50 rounded-lg font-mono flex-1">
+          {code}
+        </code>
+        <button
+          onClick={() => {
+            handleCopy(code);
+            setShowCopyModal(true);
+          }}
+          className="p-2 text-gray-600 hover:text-indigo-600 transition-colors relative group"
+          aria-label={copied ? 'Copied!' : 'Copy code'}
+        >
+          {copied ? (
+            <CheckCircle className="w-5 h-5 text-green-500" />
+          ) : (
+            <Copy className="w-5 h-5" />
+          )}
+          <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            {copied ? 'Copied!' : 'Copy code'}
+          </span>
+        </button>
+        {platformWebsiteUrl && (
+          <button
+            onClick={() => onExternalNavigation(platformWebsiteUrl)}
+            className="p-2 text-gray-600 hover:text-indigo-600 transition-colors"
+            title="Go to Website"
+          >
+            <ExternalLink className="w-5 h-5" />
+          </button>
         )}
-        <span className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 text-xs text-white bg-gray-800 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-          {copied ? 'Copied!' : 'Copy code'}
-        </span>
-      </button>
-    </div>
+      </div>
+
+      {/* Copy Success Modal */}
+      {showCopyModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 relative">
+            <button
+              onClick={() => setShowCopyModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            <div className="text-center">
+              <img
+                src={currentPlatform?.logo}
+                alt={currentPlatform?.name}
+                className="w-16 h-16 rounded-lg mx-auto mb-4"
+              />
+              <h3 className="text-xl font-semibold mb-2">{currentPlatform?.benefitLogline}</h3>
+              
+              <div className="bg-gray-50 p-4 rounded-lg my-4">
+                <p className="text-sm text-gray-600 mb-2">Your promo code:</p>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="font-mono text-lg">{code}</span>
+                  <button
+                    onClick={() => handleCopy(code, currentPlatform)}
+                    className="p-1.5 text-indigo-600 hover:text-indigo-700 transition-colors"
+                    title="Copy to clipboard"
+                  >
+                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              
+              {platformWebsiteUrl && (
+                <button
+                  onClick={() => {
+                    onExternalNavigation(platformWebsiteUrl);
+                    setShowCopyModal(false);
+                  }}
+                  className="block w-full py-3 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-center"
+                >
+                  Go to Website
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -244,6 +314,8 @@ export const ProfilePage: React.FC = () => {
   const [profileData, setProfileData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [lastClickedReferral, setLastClickedReferral] = useState<any>(null);
 
   // Add this handler for the "Add Referral Code" action
   const handleAddReferralCode = () => {
@@ -258,6 +330,20 @@ export const ProfilePage: React.FC = () => {
       console.error('Logout error:', error);
       setError('Failed to log out. Please try again.');
     }
+  };
+
+  const handleExternalNavigation = (referral: any, url: string) => {
+    // Only set referral and show feedback if not own profile
+    if (!isOwnProfile) {
+      setLastClickedReferral(referral);
+      setTimeout(() => setShowFeedbackModal(true), 500);
+    }
+    window.open(url, '_blank');
+  };
+
+  const handleFeedback = (feedback: 'success' | 'failure' | 'pending') => {
+    // Future implementation of feedback handling will go here
+    setShowFeedbackModal(false);
   };
 
   useEffect(() => {
@@ -487,7 +573,12 @@ export const ProfilePage: React.FC = () => {
                             </div>
                           )}
                         </div>
-                        <ReferralCode code={item.code} referralLink={item.referralLink} />
+                        <ReferralCode
+                          code={item.code}
+                          referralLink={item.referralLink}
+                          platformWebsiteUrl={item.platform.websiteUrl}
+                          onExternalNavigation={(url) => handleExternalNavigation(item, url)}
+                        />
                       </div>
                     );
                   })}
@@ -509,6 +600,13 @@ export const ProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Add the feedback modal */}
+      <ReferralFeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onFeedback={handleFeedback}
+      />
     </div>
   );
 };
