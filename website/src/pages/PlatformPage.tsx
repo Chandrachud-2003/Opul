@@ -245,8 +245,43 @@ export function PlatformPage() {
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [lastClickedReferral, setLastClickedReferral] = useState<ReferralCode | null>(null);
 
+  // Add this new function inside PlatformPage component
+  const trackReferralClick = async (referralId: string) => {
+    try {
+      console.log('🎯 Tracking click for referral:', referralId);
+      console.log('Current user:', user?.uid || 'Not logged in');
+
+      const response = await api.post(`/api/referrals/${referralId}/track-click`, {
+        userId: user?.uid // Will be undefined for non-logged in users
+      });
+      
+      console.log('✅ Click tracking response:', {
+        success: response.data.success,
+        newClickCount: response.data.clicks,
+        message: response.data.message
+      });
+      
+      // Update the referral code's click count in the local state
+      setReferralCodes(prevCodes => 
+        prevCodes.map(code => {
+          if (code._id === referralId) {
+            console.log(`📊 Updating click count for ${code._id} from ${code.clicks} to ${response.data.clicks}`);
+            return { ...code, clicks: response.data.clicks };
+          }
+          return code;
+        })
+      );
+    } catch (error) {
+      console.error('❌ Error tracking click:', error);
+    }
+  };
+
   // Function to handle copy and modal
-  const handleCopyCode = (code: any) => {
+  const handleCopyCode = async (code: any) => {
+    // Track the click first
+    await trackReferralClick(code._id);
+    
+    // Then copy the code
     navigator.clipboard.writeText(code.code || code.referralLink);
     setSelectedCode(code);
     setShowCopyModal(true);
@@ -562,11 +597,12 @@ export function PlatformPage() {
   };
 
   // Add this function to handle external navigation
-  const handleExternalNavigation = (code: ReferralCode, url: string) => {
-    setLastClickedReferral(code);
-    window.open(url, '_blank');
-    // Show feedback modal after a short delay to ensure the new tab has opened
-    setTimeout(() => setShowFeedbackModal(true), 500);
+  const handleExternalNavigation = async (code: any, targetUrl: string) => {
+    // Track the click first
+    await trackReferralClick(code._id);
+    
+    // Then open the link in a new tab
+    window.open(targetUrl, '_blank', 'noopener,noreferrer');
   };
 
   // Add this function to handle feedback
@@ -681,8 +717,8 @@ export function PlatformPage() {
                         
                         {/* Hide clicks unless own profile */}
                         {user?.uid === code.userId.uid && (
-                          <div className="text-sm text-gray-500">
-                            {code.clicks} clicks
+                          <div className="text-sm text-gray-600">
+                            {code.clicks === 1 ? '1 Click' : `${code.clicks} Clicks`}
                           </div>
                         )}
                         

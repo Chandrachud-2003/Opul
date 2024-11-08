@@ -257,4 +257,60 @@ router.get('/platform/:platformSlug', async (req, res) => {
   }
 });
 
+// Add this at the top of the file
+const logRequest = (message, data) => {
+  console.log('\n' + '='.repeat(80));
+  console.log(`[${new Date().toISOString()}] ${message}`);
+  if (data) console.log(JSON.stringify(data, null, 2));
+  console.log('='.repeat(80) + '\n');
+};
+
+router.post('/:id/track-click', async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id } = req.params;
+    const { userId } = req.body;
+
+    logOperation('🎯 PROCESSING CLICK TRACK REQUEST', {
+      referralId: id,
+      userId: userId || 'Not logged in'
+    });
+
+    // Find the referral code
+    const referral = await ReferralCode.findById(id).session(session);
+    if (!referral) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: 'Referral not found' });
+    }
+
+    // Don't increment if the user is clicking their own referral
+    if (userId && userId === referral.userId.toString()) {
+      await session.abortTransaction();
+      return res.status(200).json({ 
+        message: 'Own referral click not counted',
+        clicks: referral.clicks 
+      });
+    }
+
+    // Increment clicks and update user stats
+    const newClickCount = await referral.incrementClicks();
+
+    await session.commitTransaction();
+
+    res.json({ 
+      success: true, 
+      clicks: newClickCount,
+      message: 'Click count updated successfully'
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Error tracking click:', error);
+    res.status(500).json({ message: 'Error tracking click' });
+  } finally {
+    session.endSession();
+  }
+});
+
 export default router; 

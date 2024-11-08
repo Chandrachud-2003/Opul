@@ -5,6 +5,12 @@ export const createOrUpdateUser = async (firebaseUser: any) => {
   const db = await connectToDatabase();
   const users = db.collection('users');
 
+  const referralCodes = await db.collection('referralCodes')
+    .find({ userId: firebaseUser.uid })
+    .toArray();
+
+  const totalClicks = referralCodes.reduce((sum, code) => sum + (code.clicks || 0), 0);
+
   const userData = {
     uid: firebaseUser.uid,
     email: firebaseUser.email,
@@ -14,14 +20,20 @@ export const createOrUpdateUser = async (firebaseUser: any) => {
     credibilityScore: 0,
     isPremium: false,
     stats: {
-      totalClicks: 0,
-      totalEarnings: 0
+      totalClicks: totalClicks,
+      totalEarnings: 0,
+      lastClickedAt: new Date()
     }
   };
 
   await users.updateOne(
     { uid: firebaseUser.uid },
-    { $set: userData },
+    { 
+      $set: {
+        ...userData,
+        'stats.totalClicks': totalClicks
+      }
+    },
     { upsert: true }
   );
 };
@@ -39,11 +51,25 @@ export const getReferralCodes = async (platformId: string) => {
 
 export const trackClick = async (referralCodeId: string) => {
   const db = await connectToDatabase();
-  await db.collection('referralCodes').updateOne(
-    { _id: new ObjectId(referralCodeId) },
-    { 
-      $inc: { clicks: 1 },
-      $set: { lastClickedAt: new Date() }
-    }
-  );
+  const referralCode = await db.collection('referralCodes').findOne({ 
+    _id: new ObjectId(referralCodeId) 
+  });
+
+  if (referralCode) {
+    await db.collection('referralCodes').updateOne(
+      { _id: new ObjectId(referralCodeId) },
+      { 
+        $inc: { clicks: 1 },
+        $set: { lastClickedAt: new Date() }
+      }
+    );
+
+    await db.collection('users').updateOne(
+      { uid: referralCode.userId },
+      { 
+        $inc: { 'stats.totalClicks': 1 },
+        $set: { 'stats.lastClickedAt': new Date() }
+      }
+    );
+  }
 }; 

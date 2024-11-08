@@ -2,46 +2,45 @@ import express from 'express';
 import { User } from '../models/User.js';
 import { ReferralCode } from '../models/ReferralCode.js';
 
+const logOperation = (message, data) => {
+  console.log('\n' + '-'.repeat(60));
+  console.log(`[${new Date().toISOString()}] ${message}`);
+  if (data) console.log(JSON.stringify(data, null, 2));
+  console.log('-'.repeat(60) + '\n');
+};
+
 const router = express.Router();
 
 router.get('/:identifier', async (req, res) => {
   try {
     const { identifier } = req.params;
-    console.log('Searching for user with identifier:', identifier);
+    const { includeStats } = req.query;
     
-    // Add debug logging
-    console.log('Request headers:', req.headers);
-    console.log('Request params:', req.params);
-    
-    // Try finding by UID first
     let user = await User.findOne({ uid: identifier });
-    console.log('Search by uid result:', user);
-    
-    // If not found, try email
     if (!user) {
       user = await User.findOne({ email: identifier });
-      console.log('Search by email result:', user);
     }
     
     if (!user) {
-      console.log('User not found');
       return res.status(404).json({ message: 'User not found' });
     }
 
-    console.log('User found:', user);
-
-    // Fetch active referral codes for the user
+    // Get all active referral codes for the user
     const referralCodes = await ReferralCode.find({
       userId: user._id,
       status: 'ACTIVE'
     })
     .populate({
       path: 'platformId',
-      select: 'name icon benefitLogline category'
+      select: 'name icon benefitLogline category slug'
     })
+    .sort({ clicks: -1 })
+    .limit(10)
     .lean();
 
-    // Format the response
+    // Calculate total clicks from all referral codes
+    const totalClicks = referralCodes.reduce((sum, code) => sum + (code.clicks || 0), 0);
+
     const response = {
       uid: user.uid,
       email: user.email,
@@ -50,24 +49,24 @@ router.get('/:identifier', async (req, res) => {
       createdAt: user.createdAt,
       credibilityScore: user.credibilityScore || 0,
       isPremium: user.isPremium || false,
-      stats: user.stats || {
-        totalClicks: 0,
-        totalEarnings: 0,
-        lastClickedAt: null
+      stats: {
+        totalClicks: totalClicks, // Use the calculated total
+        totalReferrals: referralCodes.length,
+        lastClickedAt: user.stats?.lastClickedAt || null
       },
       referralCodes: referralCodes.map(code => ({
         id: code._id,
         platform: {
-          name: code.platformId.name,
-          logo: code.platformId.icon,
-          category: code.platformId.category,
-          benefitLogline: code.platformId.benefitLogline
+          name: code.platformId?.name,
+          logo: code.platformId?.icon,
+          category: code.platformId?.category,
+          benefitLogline: code.platformId?.benefitLogline,
+          slug: code.platformId?.slug
         },
         code: code.code,
         referralLink: code.referralLink,
         clicks: code.clicks || 0,
-        earnings: '$0.00', // Add actual earnings calculation if available
-        success: '0%' // Add actual success rate calculation if available
+        status: code.status
       }))
     };
 
@@ -75,6 +74,68 @@ router.get('/:identifier', async (req, res) => {
   } catch (error) {
     console.error('Error in /:identifier:', error);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Add a new route to fetch more referrals
+router.get('/:identifier/referrals', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    const user = await User.findOne({ uid: identifier });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const referralCodes = await ReferralCode.find({
+      userId: user._id,
+      status: 'ACTIVE'
+    })
+    .populate({
+      path: 'platformId',
+      select: 'name icon benefitLogline category slug'
+    })
+    .sort({ clicks: -1 })
+    .skip(skip)
+    .limit(parseInt(limit))
+    .lean();
+
+    // Add debug logging
+    console.log('Referral codes from database:', referralCodes.map(code => ({
+      id: code._id,
+      platformId: code.platformId,
+      platformSlug: code.platformId?.slug,
+      platformName: code.platformId?.name
+    })));
+
+    const totalCount = await ReferralCode.countDocuments({
+      userId: user._id,
+      status: 'ACTIVE'
+    });
+
+    res.json({
+      referralCodes: referralCodes.map(code => ({
+        id: code._id,
+        platform: {
+          name: code.platformId.name,
+          logo: code.platformId.icon,
+          category: code.platformId.category,
+          benefitLogline: code.platformId.benefitLogline,
+          slug: code.platformId.slug
+        },
+        code: code.code,
+        referralLink: code.referralLink,
+        clicks: code.clicks || 0,
+        status: code.status
+      })),
+      hasMore: totalCount > skip + referralCodes.length,
+      total: totalCount
+    });
+  } catch (error) {
+    console.error('Error fetching user referrals:', error);
+    res.status(500).json({ message: 'Error fetching referrals' });
   }
 });
 

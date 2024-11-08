@@ -350,52 +350,33 @@ export const ProfilePage: React.FC = () => {
     const fetchProfileData = async () => {
       try {
         setLoading(true);
-        
-        // Debug logs for profile ownership
-        console.log('🔍 Profile Access Check:', {
-          currentUser: {
-            uid: user?.uid,
-            email: user?.email,
-          },
-          requestedProfile: id,
-          isSelfProfile: id === 'me' || id === user?.uid,
-          timestamp: new Date().toISOString()
-        });
-
-        if (!user && id === 'me') {
-          console.log('⚠️ Redirecting to auth: No user logged in');
-          navigate('/auth');
-          return;
-        }
-
         const userId = id === 'me' ? user?.uid : id;
         
-        const response = await api.get(`/api/users/${userId}`);
-        setProfileData(response.data);
-
-        // Log profile ownership after data is loaded
-        console.log('👤 Profile Ownership Status:', {
-          isOwnProfile: user?.uid === response.data.uid,
-          profileData: {
-            uid: response.data.uid,
-            displayName: response.data.displayName,
-          },
-          currentUser: {
-            uid: user?.uid,
-            displayName: user?.displayName,
+        console.log('Fetching profile data for userId:', userId);
+        
+        const response = await api.get(`/api/users/${userId}`, {
+          params: {
+            includeStats: id === 'me' || id === user?.uid ? 'true' : 'false'
           }
         });
+        
+        console.log('Profile API Response:', {
+          referralCodesCount: response.data.referralCodes?.length,
+          firstReferral: response.data.referralCodes?.[0],
+          allReferrals: response.data.referralCodes
+        });
 
-      } catch (err: any) {
-        console.error('❌ Error fetching profile:', err);
-        setError(err.message || 'Failed to load profile');
+        setProfileData(response.data);
+      } catch (error) {
+        console.error('Error fetching profile:', error);
+        setError(error instanceof Error ? error.message : 'An unknown error occurred');
       } finally {
         setLoading(false);
       }
     };
 
     fetchProfileData();
-  }, [id, user, navigate]);
+  }, [id, user]);
 
   if (loading) {
     return (
@@ -470,9 +451,11 @@ export const ProfilePage: React.FC = () => {
                     <div className="bg-white p-4 rounded-xl shadow-sm text-center">
                       <TrendingUp className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-gray-800">
-                        <AnimatedNumber value={profileData.stats.totalReferrals || 0} />
+                        <AnimatedNumber value={profileData.stats.totalClicks || 0} />
                       </div>
-                      <div className="text-sm text-gray-600">Total Referrals</div>
+                      <div className="text-sm text-gray-600">
+                        {profileData.stats.totalClicks === 1 ? 'Click' : 'Clicks'}
+                      </div>
                     </div>
                     <div className="bg-white p-4 rounded-xl shadow-sm text-center">
                       <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
@@ -484,7 +467,7 @@ export const ProfilePage: React.FC = () => {
                     <div className="bg-white p-4 rounded-xl shadow-sm text-center">
                       <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
                       <div className="text-2xl font-bold text-gray-800">
-                        <AnimatedNumber value={profileData.stats.activeReferrals} />
+                        <AnimatedNumber value={profileData.stats.totalReferrals || 0} />
                       </div>
                       <div className="text-sm text-gray-600">Active Referrals</div>
                     </div>
@@ -545,16 +528,26 @@ export const ProfilePage: React.FC = () => {
               {profileData.referralCodes?.length > 0 ? (
                 <div className="space-y-4">
                   {profileData.referralCodes.map((item: any) => {
-                    console.log('Rendering referral code:', {
+                    console.log('Rendering referral item:', {
                       id: item.id,
-                      platform: item.platform.name,
-                      isOwnProfile,
-                      clicks: item.clicks
+                      platformData: item.platform,
+                      slug: item.platform?.slug
                     });
                     
                     return (
-                      <div key={item.id} className="border border-gray-100 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-4">
+                      <div 
+                        key={item.id} 
+                        className="border border-gray-100 rounded-lg p-4"
+                      >
+                        <div 
+                          onClick={() => {
+                            const slug = item.platform?.slug;
+                            if (slug) {
+                              navigate(`/platform/${slug}`);
+                            }
+                          }}
+                          className="flex items-center justify-between mb-4 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors p-2 -m-2"
+                        >
                           <div className="flex items-center gap-4">
                             <img
                               src={item.platform.logo}
@@ -569,10 +562,12 @@ export const ProfilePage: React.FC = () => {
                           {/* Only show clicks for own profile */}
                           {isOwnProfile && (
                             <div className="text-right text-sm text-gray-600">
-                              {item.clicks} clicks
+                              {item.clicks === 1 ? '1 Click' : `${item.clicks} Clicks`}
                             </div>
                           )}
                         </div>
+                        
+                        {/* Keep existing ReferralCode component */}
                         <ReferralCode
                           code={item.code}
                           referralLink={item.referralLink}

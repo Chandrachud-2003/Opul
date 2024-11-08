@@ -28,6 +28,7 @@ interface IReferralCode extends Document {
     version: number;
   };
   feedback: IFeedback[];
+  incrementClicks(): Promise<void>;
 }
 
 const feedbackSchema = new mongoose.Schema<IFeedback>(
@@ -75,5 +76,12 @@ const referralCodeSchema = new mongoose.Schema({
 
 referralCodeSchema.index({ platformSlug: 1, status: 1, clicks: -1 });
 referralCodeSchema.index({ userId: 1, status: 1 });
+
+// Add method to increment clicks
+referralCodeSchema.methods.incrementClicks = async function() {
+  this.clicks = (this.clicks || 0) + 1;
+  this.lastClickedAt = new Date();
+  await this.save();
+};
 
 export const ReferralCode = mongoose.model<IReferralCode>('ReferralCode', referralCodeSchema); 
