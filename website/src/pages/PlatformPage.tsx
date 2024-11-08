@@ -9,6 +9,7 @@ import { ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
+import { ReferralFeedbackModal } from '../components/ReferralFeedbackModal';
 
 // Type Definitions
 interface User {
@@ -239,6 +240,10 @@ export function PlatformPage() {
 
   // Inside your component, add this state
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Add these states to your component
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+  const [lastClickedReferral, setLastClickedReferral] = useState<ReferralCode | null>(null);
 
   // Function to handle copy and modal
   const handleCopyCode = (code: any) => {
@@ -556,6 +561,20 @@ export function PlatformPage() {
     );
   };
 
+  // Add this function to handle external navigation
+  const handleExternalNavigation = (code: ReferralCode, url: string) => {
+    setLastClickedReferral(code);
+    window.open(url, '_blank');
+    // Show feedback modal after a short delay to ensure the new tab has opened
+    setTimeout(() => setShowFeedbackModal(true), 500);
+  };
+
+  // Add this function to handle feedback
+  const handleFeedback = (feedback: 'success' | 'failure' | 'pending') => {
+    // Future implementation of feedback handling will go here
+    setShowFeedbackModal(false);
+  };
+
   if (loading) {
     return (
       <div className="pt-24 pb-16">
@@ -672,6 +691,13 @@ export function PlatformPage() {
                             href={code.referralLink}
                             target="_blank"
                             rel="noopener noreferrer"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              const targetUrl = code.referralLink || platform?.websiteUrl;
+                              if (targetUrl) {
+                                handleExternalNavigation(code, targetUrl);
+                              }
+                            }}
                             className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                           >
                             <ExternalLink className="w-4 h-4 mr-2" />
@@ -682,13 +708,28 @@ export function PlatformPage() {
                             <div className="px-3 py-1.5 bg-gray-100 rounded font-mono text-sm">
                               {code.code}
                             </div>
-                            <button
-                              onClick={() => handleCopyCode(code)}
-                              className="p-2 text-indigo-600 hover:text-indigo-700 transition-colors"
-                              title="Copy Code"
-                            >
-                              <Copy className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleCopyCode(code)}
+                                className="p-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+                                title="Copy Code"
+                              >
+                                <Copy className="w-5 h-5" />
+                              </button>
+                              <a
+                                href={platform.websiteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleExternalNavigation(code, platform.websiteUrl);
+                                }}
+                                className="p-2 text-indigo-600 hover:text-indigo-700 transition-colors"
+                                title="Go to Website"
+                              >
+                                <ExternalLink className="w-5 h-5" />
+                              </a>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -745,6 +786,11 @@ export function PlatformPage() {
                     href={platform?.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleExternalNavigation(selectedCode, platform.websiteUrl);
+                      setShowCopyModal(false); // Close the copy modal after navigation
+                    }}
                     className="block w-full py-3 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-center"
                   >
                     Go to Website
@@ -996,6 +1042,13 @@ export function PlatformPage() {
           </div>
         </div>
       )}
+
+      {/* Feedback Modal */}
+      <ReferralFeedbackModal
+        isOpen={showFeedbackModal}
+        onClose={() => setShowFeedbackModal(false)}
+        onFeedback={handleFeedback}
+      />
     </div>
   );
 }
