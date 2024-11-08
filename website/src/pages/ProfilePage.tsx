@@ -265,24 +265,43 @@ export const ProfilePage: React.FC = () => {
       try {
         setLoading(true);
         
-        console.log('Current user:', user);
-        console.log('ID param:', id);
-        
+        // Debug logs for profile ownership
+        console.log('🔍 Profile Access Check:', {
+          currentUser: {
+            uid: user?.uid,
+            email: user?.email,
+          },
+          requestedProfile: id,
+          isSelfProfile: id === 'me' || id === user?.uid,
+          timestamp: new Date().toISOString()
+        });
+
         if (!user && id === 'me') {
-          console.log('No user logged in, redirecting to auth');
+          console.log('⚠️ Redirecting to auth: No user logged in');
           navigate('/auth');
           return;
         }
 
         const userId = id === 'me' ? user?.uid : id;
-        console.log('Using userId for API call:', userId);
         
         const response = await api.get(`/api/users/${userId}`);
-        console.log('API response:', response.data);
-
         setProfileData(response.data);
+
+        // Log profile ownership after data is loaded
+        console.log('👤 Profile Ownership Status:', {
+          isOwnProfile: user?.uid === response.data.uid,
+          profileData: {
+            uid: response.data.uid,
+            displayName: response.data.displayName,
+          },
+          currentUser: {
+            uid: user?.uid,
+            displayName: user?.displayName,
+          }
+        });
+
       } catch (err: any) {
-        console.error('Error fetching profile:', err);
+        console.error('❌ Error fetching profile:', err);
         setError(err.message || 'Failed to load profile');
       } finally {
         setLoading(false);
@@ -311,6 +330,15 @@ export const ProfilePage: React.FC = () => {
       </div>
     );
   }
+
+  // Add near the top of the component
+  const isOwnProfile = user?.uid === profileData?.uid;
+  console.log('Profile ownership check:', {
+    currentUserUid: user?.uid,
+    profileUid: profileData?.uid,
+    isOwnProfile,
+    isPremium: user?.isPremium
+  });
 
   return (
     <div className="pt-24 pb-16">
@@ -350,44 +378,62 @@ export const ProfilePage: React.FC = () => {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
-              {profileData.stats ? (
-                <>
-                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <TrendingUp className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-800">
-                      <AnimatedNumber value={profileData.stats.totalReferrals || 0} />
+              {isOwnProfile ? (
+                profileData.stats ? (
+                  <>
+                    <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                      <TrendingUp className="w-6 h-6 text-indigo-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-gray-800">
+                        <AnimatedNumber value={profileData.stats.totalReferrals || 0} />
+                      </div>
+                      <div className="text-sm text-gray-600">Total Referrals</div>
                     </div>
-                    <div className="text-sm text-gray-600">Total Referrals</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-800">
-                      <AnimatedNumber value={profileData.stats.totalEarnings} prefix="$" />
+                    <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                      <DollarSign className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-gray-800">
+                        <AnimatedNumber value={profileData.stats.totalEarnings} prefix="$" />
+                      </div>
+                      <div className="text-sm text-gray-600">Total Earnings</div>
                     </div>
-                    <div className="text-sm text-gray-600">Total Earnings</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-800">
-                      <AnimatedNumber value={profileData.stats.activeReferrals} />
+                    <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                      <Users className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-gray-800">
+                        <AnimatedNumber value={profileData.stats.activeReferrals} />
+                      </div>
+                      <div className="text-sm text-gray-600">Active Referrals</div>
                     </div>
-                    <div className="text-sm text-gray-600">Active Referrals</div>
-                  </div>
-                  <div className="bg-white p-4 rounded-xl shadow-sm text-center">
-                    <Award className="w-6 h-6 text-purple-600 mx-auto mb-2" />
-                    <div className="text-2xl font-bold text-gray-800">
-                      <AnimatedNumber value={profileData.stats.successRate} suffix="%" />
+                    <div className="bg-white p-4 rounded-xl shadow-sm text-center">
+                      <Award className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                      <div className="text-2xl font-bold text-gray-800">
+                        <AnimatedNumber value={profileData.stats.successRate} suffix="%" />
+                      </div>
+                      <div className="text-sm text-gray-600">Success Rate</div>
                     </div>
-                    <div className="text-sm text-gray-600">Success Rate</div>
+                  </>
+                ) : (
+                  <div className="col-span-2">
+                    <EmptyState
+                      icon={<TrendingUp />}
+                      title="No Stats Yet"
+                      description="Start sharing your referral codes to see your performance metrics."
+                    />
                   </div>
-                </>
+                )
               ) : (
+                // Premium Promo for non-owners
                 <div className="col-span-2">
-                  <EmptyState
-                    icon={<TrendingUp />}
-                    title="No Stats Yet"
-                    description="Start sharing your referral codes to see your performance metrics."
-                  />
+                  <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-6 rounded-xl text-white">
+                    <h3 className="text-lg font-semibold mb-2">Unlock Premium Features</h3>
+                    <p className="text-sm text-white/90 mb-4">
+                      Get access to detailed statistics, performance metrics, and advanced features.
+                    </p>
+                    <button
+                      onClick={() => navigate('/premium')}
+                      className="w-full bg-white text-indigo-600 py-2 px-4 rounded-lg font-medium hover:bg-white/90 transition-colors"
+                    >
+                      Upgrade to Premium
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -412,39 +458,51 @@ export const ProfilePage: React.FC = () => {
               
               {profileData.referralCodes?.length > 0 ? (
                 <div className="space-y-4">
-                  {profileData.referralCodes.map((item: any) => (
-                    <div key={item.id} className="border border-gray-100 rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                          <img
-                            src={item.platform.logo}
-                            alt={item.platform.name}
-                            className="w-12 h-12 rounded-lg object-cover"
-                          />
-                          <div>
-                            <h3 className="font-medium">{item.platform.name}</h3>
-                            <p className="text-sm text-gray-600">{item.platform.benefitLogline}</p>
+                  {profileData.referralCodes.map((item: any) => {
+                    console.log('Rendering referral code:', {
+                      id: item.id,
+                      platform: item.platform.name,
+                      isOwnProfile,
+                      clicks: item.clicks
+                    });
+                    
+                    return (
+                      <div key={item.id} className="border border-gray-100 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-4">
+                            <img
+                              src={item.platform.logo}
+                              alt={item.platform.name}
+                              className="w-12 h-12 rounded-lg object-cover"
+                            />
+                            <div>
+                              <h3 className="font-medium">{item.platform.name}</h3>
+                              <p className="text-sm text-gray-600">{item.platform.benefitLogline}</p>
+                            </div>
                           </div>
+                          {/* Only show clicks for own profile */}
+                          {isOwnProfile && (
+                            <div className="text-right text-sm text-gray-600">
+                              {item.clicks} clicks
+                            </div>
+                          )}
                         </div>
-                        <div className="text-right text-sm text-gray-600">
-                          {item.clicks} clicks
-                        </div>
+                        <ReferralCode code={item.code} referralLink={item.referralLink} />
                       </div>
-                      <ReferralCode code={item.code} referralLink={item.referralLink} />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <EmptyState
                   icon={<PlusCircle />}
                   title="No Referral Codes Yet"
                   description={
-                    user?.uid === profileData.uid
+                    isOwnProfile
                       ? "You haven't added any referral codes yet. Add your first code to start earning rewards!"
-                      : "This user hasn't added any referral codes yet."
+                      : "This user hasn't shared any referral codes yet. Check back later!"
                   }
-                  actionLabel={user?.uid === profileData.uid ? "Add Your First Code" : undefined}
-                  onAction={user?.uid === profileData.uid ? handleAddReferralCode : undefined}
+                  actionLabel={isOwnProfile ? "Add Your First Code" : undefined}
+                  onAction={isOwnProfile ? handleAddReferralCode : undefined}
                 />
               )}
             </div>

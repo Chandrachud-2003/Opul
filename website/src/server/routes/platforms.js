@@ -81,7 +81,7 @@ router.get('/slug/:slug', async (req, res) => {
     })
     .sort({ clicks: -1 })
     .limit(20)
-    .populate('userId', 'displayName profilePicture credibilityScore')
+    .populate('userId', 'displayName profilePicture credibilityScore uid')
     .lean();
 
     // Get total count for pagination

@@ -56,6 +56,7 @@ interface ReferralCode {
   clicks: number;
   status: string;
   userId: {
+    uid: string;
     displayName: string;
     profilePicture: string;
     credibilityScore?: number;
@@ -75,7 +76,7 @@ interface Platform {
   referralType: 'code' | 'link';
   getReferralSteps?: string[];
   getReferralLink?: string;
-  websiteUrl?: string;
+  websiteUrl: string;
 }
 
 // Initial Platform Data
@@ -235,6 +236,9 @@ export function PlatformPage() {
     icon: string;
     benefitLogline: string;
   }>>([]);
+
+  // Inside your component, add this state
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Function to handle copy and modal
   const handleCopyCode = (code: any) => {
@@ -623,23 +627,45 @@ export function PlatformPage() {
                     <div key={code._id} className="border rounded-lg p-4 hover:border-indigo-200 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <img
-                            src={code.userId.profilePicture || '/default-avatar.png'}
-                            alt={code.userId.displayName}
-                            className="w-10 h-10 rounded-full"
-                          />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{code.userId.displayName}</span>
-                              {(code.userId.credibilityScore ?? 0) >= 80 && (
-                                <Award className="w-4 h-4 text-indigo-600" />
+                          <Link
+                            to={`/profile/${code.userId?.uid || ''}`}
+                            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                            onClick={(e) => {
+                              if (!code.userId?.uid) {
+                                e.preventDefault();
+                                console.error('User ID is undefined:', {
+                                  codeId: code._id,
+                                  userId: code.userId,
+                                  fullCode: code
+                                });
+                              }
+                            }}
+                          >
+                            <img
+                              src={code.userId.profilePicture || '/default-avatar.png'}
+                              alt={code.userId.displayName}
+                              className="w-10 h-10 rounded-full"
+                            />
+                            <div>
+                              <div className="font-medium text-gray-900">
+                                {code.userId.displayName}
+                              </div>
+                              {/* Only show score for own profile or if premium */}
+                              {(user?.uid === code.userId.uid || user?.isPremium) && (
+                                <div className="text-sm text-gray-500">
+                                  {code.userId.credibilityScore}% Credibility
+                                </div>
                               )}
-                              <span className="text-sm px-2 py-0.5 bg-gray-100 rounded-full text-gray-600">
-                                Score: {code.userId.credibilityScore || 0}
-                              </span>
                             </div>
-                          </div>
+                          </Link>
                         </div>
+                        
+                        {/* Hide clicks unless own profile */}
+                        {user?.uid === code.userId.uid && (
+                          <div className="text-sm text-gray-500">
+                            {code.clicks} clicks
+                          </div>
+                        )}
                         
                         {platform?.referralType === 'link' ? (
                           <a
@@ -697,25 +723,31 @@ export function PlatformPage() {
                     <div className="flex items-center justify-center gap-2">
                       <span className="font-mono text-lg">{selectedCode.code}</span>
                       <button
-                        onClick={() => navigator.clipboard.writeText(selectedCode.code)}
-                        className="p-1.5 text-indigo-600 hover:text-indigo-700"
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedCode.code || selectedCode.referralLink);
+                          setCopiedCode(selectedCode.code || selectedCode.referralLink);
+                          setTimeout(() => setCopiedCode(null), 2000); // Reset after 2 seconds
+                          toast.success('Copied to clipboard!');
+                        }}
+                        className="p-1.5 text-indigo-600 hover:text-indigo-700 transition-colors"
+                        title="Copy to clipboard"
                       >
-                        <Copy className="w-4 h-4" />
+                        {copiedCode === (selectedCode.code || selectedCode.referralLink) ? (
+                          <Check className="w-4 h-4" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
                       </button>
-                    </div>
-                    <div className="mt-2 flex items-center justify-center gap-1 text-sm text-gray-600">
-                      <Award className="w-4 h-4 text-indigo-600" />
-                      <span>Score: {selectedCode.userId.credibilityScore || 0}</span>
                     </div>
                   </div>
                   
                   <a
-                    href={selectedCode.referralLink}
+                    href={platform?.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="block w-full py-3 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-center"
                   >
-                    Claim
+                    Go to Website
                   </a>
                 </div>
               </div>

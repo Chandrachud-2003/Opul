@@ -217,12 +217,14 @@ router.get('/platform/:platformSlug', async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
     
+    console.log('Fetching referrals for platform:', platformSlug);
+    
     const [referrals, total] = await Promise.all([
       ReferralCode.find({
         platformSlug,
         status: 'ACTIVE'
       })
-      .populate('userId', 'displayName profilePicture credibilityScore')
+      .populate('userId', 'displayName profilePicture credibilityScore uid')
       .sort({ clicks: -1 })
       .skip(skip)
       .limit(limit)
@@ -233,6 +235,15 @@ router.get('/platform/:platformSlug', async (req, res) => {
         status: 'ACTIVE'
       })
     ]);
+
+    console.log('Referral codes with user data:', referrals.map(ref => ({
+      id: ref._id,
+      userInfo: {
+        id: ref.userId?._id,
+        uid: ref.userId?.uid,
+        displayName: ref.userId?.displayName
+      }
+    })));
 
     res.json({ 
       referralCodes: referrals,
