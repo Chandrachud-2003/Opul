@@ -162,4 +162,28 @@ router.get('/:id/validation', async (req, res) => {
   }
 });
 
+// Add this new route before the existing routes
+router.get('/:slug/related', async (req, res) => {
+  try {
+    const platform = await Platform.findOne({ slug: req.params.slug });
+    if (!platform) {
+      return res.status(404).json({ message: 'Platform not found' });
+    }
+
+    const relatedPlatforms = await Platform.find({
+      category: platform.category,
+      slug: { $ne: platform.slug }, // Exclude current platform
+      isActive: true
+    })
+    .select('name icon benefitLogline slug')
+    .limit(2)
+    .lean();
+
+    res.json({ relatedPlatforms });
+  } catch (error) {
+    console.error('Error fetching related platforms:', error);
+    res.status(500).json({ message: 'Error fetching related platforms' });
+  }
+});
+
 export default router; 

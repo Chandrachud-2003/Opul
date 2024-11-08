@@ -228,6 +228,14 @@ export function PlatformPage() {
   // Add new state for success
   const [editSuccess, setEditSuccess] = useState(false);
 
+  // Add this state for related platforms
+  const [relatedPlatforms, setRelatedPlatforms] = useState<Array<{
+    slug: string;
+    name: string;
+    icon: string;
+    benefitLogline: string;
+  }>>([]);
+
   // Function to handle copy and modal
   const handleCopyCode = (code: any) => {
     navigator.clipboard.writeText(code.code || code.referralLink);
@@ -301,6 +309,7 @@ export function PlatformPage() {
   useEffect(() => {
     if (id) {
       fetchPlatformData();
+      fetchRelatedPlatforms();
     }
   }, [id]);
 
@@ -493,6 +502,54 @@ export function PlatformPage() {
     } finally {
       setIsEditing(false);
     }
+  };
+
+  // Add this function to fetch related platforms
+  const fetchRelatedPlatforms = async () => {
+    try {
+      const response = await api.get(`/api/platforms/${id}/related`);
+      setRelatedPlatforms(response.data.relatedPlatforms);
+    } catch (error) {
+      console.error('Error fetching related platforms:', error);
+    }
+  };
+
+  // Replace the RelatedDeals component with this updated version
+  const RelatedDeals = () => {
+    // If no related platforms, don't render anything
+    if (!relatedPlatforms.length) {
+      return null;
+    }
+
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-sm">
+        <h3 className="text-lg font-semibold mb-4">Related Deals</h3>
+        <div className="space-y-4">
+          {relatedPlatforms.map((platform) => (
+            <Link
+              key={platform.slug}
+              to={`/platform/${platform.slug}`}
+              className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors group"
+            >
+              <img
+                src={platform.icon}
+                alt={platform.name}
+                className="w-12 h-12 rounded-lg object-cover"
+              />
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-gray-900 truncate group-hover:text-indigo-600 transition-colors">
+                  {platform.name}
+                </h4>
+                <p className="text-sm text-indigo-600 truncate">
+                  {platform.benefitLogline}
+                </p>
+              </div>
+              <ChevronDown className="w-5 h-5 text-gray-400 rotate-[-90deg] group-hover:text-indigo-600 transition-colors" />
+            </Link>
+          ))}
+        </div>
+      </div>
+    );
   };
 
   if (loading) {
@@ -775,28 +832,7 @@ export function PlatformPage() {
             </div>
 
             {/* Related Deals */}
-            <div className="bg-white p-6 rounded-xl shadow-sm">
-              <h3 className="text-lg font-semibold mb-4">Related Deals</h3>
-              <div className="space-y-4">
-                {hardcodedRelatedDeals.map((deal) => (
-                  <Link
-                    key={deal.id}
-                    to={`/platform/${deal.id}`}
-                    className="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <img
-                      src={deal.logo}
-                      alt={deal.name}
-                      className="w-12 h-12 rounded-lg"
-                    />
-                    <div>
-                      <h4 className="font-medium">{deal.name}</h4>
-                      <p className="text-sm text-indigo-600">{deal.benefit}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
+            <RelatedDeals />
           </div>
         </div>
       </div>
