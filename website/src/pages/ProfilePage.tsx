@@ -52,7 +52,7 @@ interface UserData {
 
 // Animation component props
 interface AnimatedNumberProps {
-  value: number;
+  value?: number;
   prefix?: string;
   suffix?: string;
 }
@@ -115,24 +115,34 @@ const userData: UserData = {
   ]
 };
 
-const AnimatedNumber: React.FC<AnimatedNumberProps> = ({ value, prefix = '', suffix = '' }) => {
+const AnimatedNumber: React.FC<AnimatedNumberProps> = ({ value = 0, prefix = '', suffix = '' }) => {
+  // Ensure value is a number and default to 0 if undefined
+  const numberValue = typeof value === 'number' ? value : 0;
+  
+  // Only animate if value is 10 or greater
+  const shouldAnimate = numberValue >= 10;
+
   const { number } = useSpring({
-    from: { number: 0 },
-    number: value,
-    delay: 100, // Reduced from 200
+    from: { number: shouldAnimate ? 0 : numberValue },
+    number: numberValue,
+    delay: 100,
     config: { 
       mass: 1, 
-      tension: 180, // Increased from 20
-      friction: 12  // Slightly increased from 10 for smoother end
+      tension: 180,
+      friction: 12
     }
   });
 
   return (
     <animated.div>
       {prefix}
-      <animated.span>
-        {number.to(n => Math.floor(n).toLocaleString())}
-      </animated.span>
+      {shouldAnimate ? (
+        <animated.span>
+          {number.to(n => Math.floor(n).toLocaleString())}
+        </animated.span>
+      ) : (
+        <span>{numberValue.toLocaleString()}</span>
+      )}
       {suffix}
     </animated.div>
   );
