@@ -48,7 +48,9 @@ app.use('/api/platforms', platformRoutes);
 app.use('/api/referrals', referralRoutes);
 
 // Connect to MongoDB before starting the server
-mongoose.connect(process.env.MONGODB_URI)
+mongoose.connect(process.env.MONGODB_URI, {
+  dbName: 'Opul' // Explicitly set the database name
+})
   .then(async () => {
     console.log('Connected to MongoDB successfully');
     
