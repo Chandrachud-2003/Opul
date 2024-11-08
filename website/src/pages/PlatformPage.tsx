@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Copy, Check, ExternalLink, Award, Info, X } from 'lucide-react';
+import { Copy, Check, ExternalLink, Award, Info, X, CheckCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import api from '../config/axios';
 import { EmptyState } from '../components/EmptyState';
@@ -219,6 +219,14 @@ export function PlatformPage() {
   // Add these state variables
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+  // Add edit modal handler
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editValue, setEditValue] = useState('');
+  const [editError, setEditError] = useState('');
+
+  // Add new state for success
+  const [editSuccess, setEditSuccess] = useState(false);
 
   // Function to handle copy and modal
   const handleCopyCode = (code: any) => {
@@ -442,6 +450,51 @@ export function PlatformPage() {
     }
   };
 
+  // Add edit modal handler
+  const handleEditClick = (referral: ReferralCode) => {
+    setEditValue(referral.code || referral.referralLink || '');
+    setEditingReferral(referral);
+    setIsEditModalOpen(true);
+  };
+
+  // Add save handler
+  const handleSaveEdit = async () => {
+    if (!editingReferral) return;
+    
+    setIsEditing(true);
+    setEditError('');
+    setEditSuccess(false);
+
+    try {
+      if (platform?.referralType === 'link' && !isValidUrl(editValue)) {
+        setEditError('Please enter a valid URL');
+        return;
+      }
+
+      const response = await api.put(`/api/referrals/${editingReferral._id}`, {
+        referralValue: editValue,
+        type: platform?.referralType
+      });
+
+      if (response.data.success) {
+        setEditSuccess(true);
+        toast.success('Referral updated successfully');
+        
+        // Close modal and reload data after short delay
+        setTimeout(() => {
+          setIsEditModalOpen(false);
+          fetchPlatformData();
+          setEditSuccess(false);
+        }, 1500);
+      }
+    } catch (error: any) {
+      setEditError(error.response?.data?.message || 'Failed to update referral');
+      toast.error('Failed to update referral');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="pt-24 pb-16">
@@ -644,10 +697,7 @@ export function PlatformPage() {
                       </span>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => {
-                            setIsEditing(true);
-                            setEditingReferral(referral);
-                          }}
+                          onClick={() => handleEditClick(referral)}
                           className="text-sm text-indigo-600 hover:text-indigo-700"
                         >
                           Edit
@@ -816,6 +866,60 @@ export function PlatformPage() {
                       ) : (
                         'Delete'
                       )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && editingReferral && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            {editSuccess ? (
+              <div className="text-center py-4">
+                <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Successfully Updated!</h3>
+                <p className="text-gray-600">Your referral has been updated.</p>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold mb-4">Edit Referral</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      {platform?.referralType === 'link' ? 'Referral Link' : 'Referral Code'}
+                    </label>
+                    <input
+                      type={platform?.referralType === 'link' ? 'url' : 'text'}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder={platform?.referralType === 'link' ? 'Enter referral link' : 'Enter referral code'}
+                    />
+                    {editError && (
+                      <p className="mt-1 text-sm text-red-600">{editError}</p>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={isEditing || !editValue.trim()}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400"
+                    >
+                      {isEditing ? 'Saving...' : 'Save Changes'}
                     </button>
                   </div>
                 </div>
