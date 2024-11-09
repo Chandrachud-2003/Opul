@@ -95,11 +95,9 @@ router.get('/:identifier/referrals', async (req, res) => {
     })
     .populate({
       path: 'platformId',
-      select: 'name icon benefitLogline category slug'
+      select: 'name icon benefitLogline category slug websiteUrl'
     })
     .sort({ clicks: -1 })
-    .skip(skip)
-    .limit(parseInt(limit))
     .lean();
 
     // Add debug logging
@@ -119,15 +117,18 @@ router.get('/:identifier/referrals', async (req, res) => {
       referralCodes: referralCodes.map(code => ({
         id: code._id,
         platform: {
-          name: code.platformId.name,
-          logo: code.platformId.icon,
-          category: code.platformId.category,
-          benefitLogline: code.platformId.benefitLogline,
-          slug: code.platformId.slug
+          name: code.platformId?.name || '',
+          logo: code.platformId?.icon || '',
+          category: code.platformId?.category || '',
+          benefitLogline: code.platformId?.benefitLogline || '',
+          websiteUrl: code.platformId?.websiteUrl || '',
+          slug: code.platformId?.slug || ''
         },
         code: code.code,
         referralLink: code.referralLink,
         clicks: code.clicks || 0,
+        totalUses: code.totalUses || 0,
+        successfulUses: code.successfulUses || 0,
         status: code.status
       })),
       hasMore: totalCount > skip + referralCodes.length,

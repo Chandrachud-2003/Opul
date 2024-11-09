@@ -16,6 +16,7 @@ interface Platform {
   category: string;
   benefitLogline: string;
   websiteUrl?: string;
+  slug: string;
 }
 
 interface ReferralCodeData {
@@ -23,6 +24,8 @@ interface ReferralCodeData {
   platform: Platform;
   code: string;
   clicks: number;
+  totalUses: number;
+  successfulUses: number;
   earnings: string;
   success: string;
   referralLink: string;
@@ -89,10 +92,13 @@ const userData: UserData = {
         logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
         category: 'Finance',
         benefitLogline: 'Earn rewards for every referral',
-        websiteUrl: 'https://www.chase.com/sapphire-preferred'
+        websiteUrl: 'https://www.chase.com/sapphire-preferred',
+        slug: 'chase-sapphire-preferred'
       },
       code: 'SARAHM2024',
       clicks: 156,
+      totalUses: 156,
+      successfulUses: 156,
       earnings: '$890',
       success: '98%',
       referralLink: 'https://example.com/ref/SARAHM2024'
@@ -104,10 +110,13 @@ const userData: UserData = {
         logo: 'https://images.unsplash.com/photo-1622186477895-f2af6a0f5a97?auto=format&fit=crop&w=64&h=64',
         category: 'Finance',
         benefitLogline: 'Earn rewards for every referral',
-        websiteUrl: 'https://www.americanexpress.com/platinum-card'
+        websiteUrl: 'https://www.americanexpress.com/platinum-card',
+        slug: 'amex-platinum'
       },
       code: 'SARAHM-AMEX',
       clicks: 98,
+      totalUses: 98,
+      successfulUses: 98,
       earnings: '$650',
       success: '95%',
       referralLink: 'https://example.com/ref/SARAHM-AMEX'
@@ -549,56 +558,46 @@ export const ProfilePage: React.FC = () => {
               
               {profileData.referralCodes?.length > 0 ? (
                 <div className="space-y-4">
-                  {profileData.referralCodes.map((item: any) => {
-                    console.log('Rendering referral item:', {
-                      id: item.id,
-                      platformData: item.platform,
-                      slug: item.platform?.slug
-                    });
-                    
-                    return (
-                      <div 
-                        key={item.id} 
-                        className="border border-gray-100 rounded-lg p-4"
-                      >
-                        <div 
-                          onClick={() => {
-                            const slug = item.platform?.slug;
-                            if (slug) {
-                              navigate(`/platform/${slug}`);
-                            }
-                          }}
-                          className="flex items-center justify-between mb-4 cursor-pointer hover:bg-gray-50 rounded-lg transition-colors p-2 -m-2"
-                        >
-                          <div className="flex items-center gap-4">
-                            <img
-                              src={item.platform.logo}
-                              alt={item.platform.name}
-                              className="w-12 h-12 rounded-lg object-cover"
-                            />
+                  {profileData.referralCodes.map((item: ReferralCodeData) => (
+                    <div key={item.id} className="border border-gray-100 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={item.platform.logo}
+                            alt={item.platform.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                          <div>
+                            <h3 className="font-medium">{item.platform.name}</h3>
+                            <p className="text-sm text-gray-600">{item.platform.benefitLogline}</p>
+                          </div>
+                        </div>
+                        {isOwnProfile && (
+                          <div className="flex gap-4 text-sm text-gray-600">
                             <div>
-                              <h3 className="font-medium">{item.platform.name}</h3>
-                              <p className="text-sm text-gray-600">{item.platform.benefitLogline}</p>
+                              <TrendingUp className="w-4 h-4 inline mr-1" />
+                              {item.clicks || 0} Clicks
+                            </div>
+                            <div>
+                              <Users className="w-4 h-4 inline mr-1" />
+                              {item.totalUses || 0} Uses
+                            </div>
+                            <div>
+                              <CheckCircle className="w-4 h-4 inline mr-1 text-green-500" />
+                              {item.successfulUses || 0} Successes
                             </div>
                           </div>
-                          {/* Only show clicks for own profile */}
-                          {isOwnProfile && (
-                            <div className="text-right text-sm text-gray-600">
-                              {item.clicks === 1 ? '1 Click' : `${item.clicks} Clicks`}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Keep existing ReferralCode component */}
-                        <ReferralCode
-                          code={item.code}
-                          referralLink={item.referralLink}
-                          platformWebsiteUrl={item.platform.websiteUrl}
-                          onExternalNavigation={(url) => handleExternalNavigation(item, url)}
-                        />
+                        )}
                       </div>
-                    );
-                  })}
+
+                      <ReferralCode
+                        code={item.code}
+                        referralLink={item.referralLink}
+                        platformWebsiteUrl={item.platform.websiteUrl}
+                        onExternalNavigation={(url) => handleExternalNavigation(item, url)}
+                      />
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <EmptyState

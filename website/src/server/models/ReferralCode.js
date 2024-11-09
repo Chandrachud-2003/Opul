@@ -22,6 +22,14 @@ const referralCodeSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  totalUses: {
+    type: Number,
+    default: 0
+  },
+  successfulUses: {
+    type: Number,
+    default: 0
+  },
   status: {
     type: String,
     enum: ['ACTIVE', 'EXPIRED', 'DELETED'],
