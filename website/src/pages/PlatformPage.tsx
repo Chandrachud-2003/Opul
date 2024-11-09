@@ -244,6 +244,7 @@ export function PlatformPage() {
   // Add these states to your component
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [lastClickedReferral, setLastClickedReferral] = useState<ReferralCode | null>(null);
+  const [currentReferral, setCurrentReferral] = useState<any>(null);
 
   // Add this new function inside PlatformPage component
   const trackReferralClick = async (referralId: string) => {
@@ -255,7 +256,7 @@ export function PlatformPage() {
         userId: user?.uid // Will be undefined for non-logged in users
       });
       
-      console.log('✅ Click tracking response:', {
+      console.log(' Click tracking response:', {
         success: response.data.success,
         newClickCount: response.data.clicks,
         message: response.data.message
@@ -428,7 +429,18 @@ export function PlatformPage() {
     fetchReferralCodes();
   }, [id]);
 
-  const validateReferralValue = (value: string): boolean => {
+  const validateReferralValue = (value: string) => {
+    // Skip validation if user is not authenticated
+    if (!user) {
+      navigate('/auth', { 
+        state: { 
+          message: 'Please sign in to submit your referral code',
+          returnPath: window.location.pathname
+        }
+      });
+      return false;
+    }
+
     if (!platform || !validationRules) return true;
     
     if (platform.referralType === 'link') {
@@ -451,36 +463,48 @@ export function PlatformPage() {
 
   const handleReferralSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (!user) {
+      navigate('/auth', { 
+        state: { 
+          message: 'Please sign in to submit your referral code',
+          returnPath: window.location.pathname
+        }
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError('');
     setSubmitSuccess(false);
 
     try {
-      if (!user) {
-        throw new Error('User not authenticated');
-      }
-      if (!id) {
-        throw new Error('Platform slug not found');
-      }
-
-      const response = await api.post('/api/referrals', {
-        platformSlug: id,
+      await api.post('/api/referrals', {
+        platformSlug: platform?.slug,
+        userId: user.uid,
         referralValue,
         type: platform?.referralType
       });
 
+      // Show success message
       setSubmitSuccess(true);
       setReferralValue('');
       
-      // Refresh user referrals
-      const updatedReferrals = [...userReferrals, response.data.referral];
-      setUserReferrals(updatedReferrals);
-      
-      toast.success('Referral submitted successfully!');
+      // Reload the platform data to show the new referral
+      const response = await api.get(`/api/platforms/${platform?.slug}`);
+      setPlatform(response.data);
+
+      // Optional: Scroll to the referrals section
+      const referralsSection = document.getElementById('referrals-section');
+      if (referralsSection) {
+        referralsSection.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      toast.success('Your referral has been added successfully!');
     } catch (error: any) {
       console.error('Error submitting referral:', error);
-      setSubmitError(error.response?.data?.message || 'Failed to submit referral');
-      toast.error('Failed to submit referral');
+      setSubmitError(error.response?.data?.message || 'Error submitting referral');
+      toast.error(error.response?.data?.message || 'Error submitting referral');
     } finally {
       setIsSubmitting(false);
     }
@@ -597,18 +621,37 @@ export function PlatformPage() {
   };
 
   // Add this function to handle external navigation
-  const handleExternalNavigation = async (code: any, targetUrl: string) => {
-    // Track the click first
-    await trackReferralClick(code._id);
-    
-    // Then open the link in a new tab
-    window.open(targetUrl, '_blank', 'noopener,noreferrer');
+  const handleExternalNavigation = async (referral: any, targetUrl: string) => {
+    try {
+      // Track click
+      if (referral?._id) {
+        await api.post(`/api/referrals/${referral._id}/track-click`, {
+          userId: user?.uid
+        });
+      }
+      
+      // Open URL
+      window.open(targetUrl, '_blank');
+      
+      // Show feedback modal
+      setCurrentReferral(referral);
+      setShowFeedbackModal(true);
+    } catch (error) {
+      console.error('Error handling navigation:', error);
+    }
   };
 
-  // Add this function to handle feedback
-  const handleFeedback = (feedback: 'success' | 'failure' | 'pending') => {
-    // Future implementation of feedback handling will go here
-    setShowFeedbackModal(false);
+  // Add feedback handler
+  const handleFeedback = async (feedback: 'success' | 'failure' | 'pending') => {
+    try {
+      if (currentReferral?._id) {
+        await api.post(`/api/referrals/${currentReferral._id}/feedback`, { status: feedback });
+      }
+      setShowFeedbackModal(false);
+      setCurrentReferral(null);
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+    }
   };
 
   if (loading) {
@@ -896,7 +939,10 @@ export function PlatformPage() {
                       }
                       onChange={(e) => {
                         setReferralValue(e.target.value);
-                        validateReferralValue(e.target.value);
+                        // Only validate if user is authenticated
+                        if (user) {
+                          validateReferralValue(e.target.value);
+                        }
                       }}
                       disabled={isSubmitting}
                       className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"

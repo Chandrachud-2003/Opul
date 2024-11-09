@@ -326,6 +326,7 @@ export const ProfilePage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [lastClickedReferral, setLastClickedReferral] = useState<any>(null);
+  const [currentReferral, setCurrentReferral] = useState<any>(null);
 
   // Add this handler for the "Add Referral Code" action
   const handleAddReferralCode = () => {
@@ -342,13 +343,24 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleExternalNavigation = (referral: any, url: string) => {
-    // Only set referral and show feedback if not own profile
-    if (!isOwnProfile) {
-      setLastClickedReferral(referral);
-      setTimeout(() => setShowFeedbackModal(true), 500);
+  const handleExternalNavigation = async (referral: any, targetUrl: string) => {
+    try {
+      // Track click
+      if (referral?.id) {
+        await api.post(`/api/referrals/${referral.id}/track-click`, {
+          userId: user?.uid
+        });
+      }
+      
+      // Open URL
+      window.open(targetUrl, '_blank');
+      
+      // Show feedback modal
+      setCurrentReferral(referral);
+      setShowFeedbackModal(true);
+    } catch (error) {
+      console.error('Error handling navigation:', error);
     }
-    window.open(url, '_blank');
   };
 
   const handleFeedback = (feedback: 'success' | 'failure' | 'pending') => {

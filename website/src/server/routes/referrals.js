@@ -273,7 +273,7 @@ router.post('/:id/track-click', async (req, res) => {
     const { id } = req.params;
     const { userId } = req.body;
 
-    logOperation('🎯 PROCESSING CLICK TRACK REQUEST', {
+    logRequest('🎯 PROCESSING CLICK TRACK REQUEST', {
       referralId: id,
       userId: userId || 'Not logged in'
     });

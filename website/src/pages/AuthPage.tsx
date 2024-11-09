@@ -1,14 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowRight } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
-import api from '../config/axios';
-import { getAuth, signInWithPopup, GoogleAuthProvider, getRedirectResult } from 'firebase/auth';
-import { createOrUpdateUser } from '../utils/userUtils';
-import InfoIcon from '../components/InfoIcon';
+import React, { useState, useEffect } from "react";
+import { ArrowRight } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+import api from "../config/axios";
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  getRedirectResult,
+} from "firebase/auth";
+import { createOrUpdateUser } from "../utils/userUtils";
+import InfoIcon from "../components/InfoIcon";
 
 export function AuthPage() {
-  const [error, setError] = useState<string>('');
+  const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,11 +52,11 @@ export function AuthPage() {
         if (result) {
           // User successfully signed in
           await createOrUpdateUser(result.user);
-          navigate('/');
+          navigate("/");
         }
       } catch (error) {
-        console.error('Error handling redirect:', error);
-        setError('Failed to sign in with Google. Please try again.');
+        console.error("Error handling redirect:", error);
+        setError("Failed to sign in with Google. Please try again.");
       }
     };
 
@@ -59,48 +64,48 @@ export function AuthPage() {
   }, [navigate]);
 
   const handleGoogleSignIn = async () => {
-    setError('');
+    setError("");
     setLoading(true);
-    
+
     try {
       const auth = getAuth();
       const provider = new GoogleAuthProvider();
-      
+
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
-        console.log('Firebase auth successful, creating/updating user...');
+        console.log("Firebase auth successful, creating/updating user...");
         await createOrUpdateUser(result.user);
-        console.log('User created/updated successfully');
-        navigate('/');
+        console.log("User created/updated successfully");
+        navigate("/");
       }
     } catch (error: any) {
-      console.error('Auth error:', error);
-      setError(error.message || 'An error occurred during authentication');
+      console.error("Auth error:", error);
+      setError(error.message || "An error occurred during authentication");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-indigo-500 to-purple-600 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full bg-white p-8 rounded-xl shadow-lg">
         {message && (
-          <div className="mb-6 p-4 bg-indigo-50 border-l-4 border-indigo-500 rounded-lg">
+          <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded-lg">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <InfoIcon className="h-5 w-5 text-indigo-500" />
+                <InfoIcon className="h-5 w-5 text-blue-500" />
               </div>
               <div className="ml-3">
-                <p className="text-sm text-indigo-700">{message}</p>
+                <p className="text-sm text-blue-700">{message}</p>
               </div>
             </div>
           </div>
         )}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Welcome to ReferralHub</h1>
-          <p className="text-gray-600">
-            Join our community of smart referrers
-          </p>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            Welcome to ReferralHub
+          </h1>
+          <p className="text-gray-600">Join our community of smart referrers</p>
         </div>
 
         {/* Error Message */}
@@ -114,7 +119,7 @@ export function AuthPage() {
         <button
           onClick={handleGoogleSignIn}
           disabled={loading}
-          className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+          className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -134,19 +139,26 @@ export function AuthPage() {
               fill="#EA4335"
             />
           </svg>
-          {loading ? 'Signing in...' : 'Continue with Google'}
+          {loading ? "Signing in..." : "Continue with Google"}
         </button>
 
         {/* Terms and Privacy Policy Notice */}
         <p className="mt-4 text-center text-sm text-gray-600">
-          By logging in, you agree to our{' '}
-          <a href="/terms" className="text-indigo-600 hover:text-indigo-700 font-medium">
+          By logging in, you agree to our{" "}
+          <a
+            href="/terms"
+            className="text-blue-600 hover:text-blue-700 font-medium"
+          >
             Terms of Service
-          </a>{' '}
-          and{' '}
-          <a href="/privacy" className="text-indigo-600 hover:text-indigo-700 font-medium">
+          </a>{" "}
+          and{" "}
+          <a
+            href="/privacy"
+            className="text-blue-600 hover:text-blue-700 font-medium"
+          >
             Privacy Policy
-          </a>.
+          </a>
+          .
         </p>
       </div>
     </div>

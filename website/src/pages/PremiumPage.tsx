@@ -1,39 +1,43 @@
-import React from 'react';
-import { Shield, Award, Gift, TrendingUp, Check } from 'lucide-react';
+import React from "react";
+import { Shield, Award, Gift, TrendingUp, Check } from "lucide-react";
 
 const features = [
   {
     icon: Shield,
-    title: 'Verified Badge',
-    description: 'Stand out with a verified badge on your profile and listings'
+    title: "Verified Badge",
+    description: "Stand out with a verified badge on your profile and listings",
   },
   {
     icon: TrendingUp,
-    title: 'Priority Ranking',
-    description: 'Your referral codes appear higher in search results'
+    title: "Priority Ranking",
+    description: "Your referral codes appear higher in search results",
   },
   {
     icon: Gift,
-    title: 'Early Access',
-    description: 'Be the first to list codes for new platforms and offers'
-  }
+    title: "Early Access",
+    description: "Be the first to list codes for new platforms and offers",
+  },
 ];
 
 const testimonials = [
   {
-    name: 'Sarah M.',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64',
-    role: 'Premium Member',
-    content: 'Since upgrading to premium, my referral earnings have increased by 3x. The verified badge really helps build trust.',
-    earnings: '$4,320/month'
+    name: "Sarah M.",
+    avatar:
+      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=64&h=64",
+    role: "Premium Member",
+    content:
+      "Since upgrading to premium, my referral earnings have increased by 3x. The verified badge really helps build trust.",
+    earnings: "$4,320/month",
   },
   {
-    name: 'John D.',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64',
-    role: 'Premium Member',
-    content: 'The priority ranking feature has been a game-changer. My codes get more visibility and clicks.',
-    earnings: '$3,150/month'
-  }
+    name: "John D.",
+    avatar:
+      "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=64&h=64",
+    role: "Premium Member",
+    content:
+      "The priority ranking feature has been a game-changer. My codes get more visibility and clicks.",
+    earnings: "$3,150/month",
+  },
 ];
 
 export function PremiumPage() {
@@ -46,7 +50,8 @@ export function PremiumPage() {
             Upgrade to Premium
           </h1>
           <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
-            Boost your referral earnings with premium features designed for serious referrers.
+            Boost your referral earnings with premium features designed for
+            serious referrers.
           </p>
           <button className="bg-white text-indigo-600 px-8 py-3 rounded-lg font-medium hover:bg-white/90 transition-colors">
             Get Started
@@ -74,18 +79,20 @@ export function PremiumPage() {
         <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
           <div className="bg-indigo-600 p-8 text-white text-center">
             <h2 className="text-2xl font-bold mb-2">Premium Membership</h2>
-            <div className="text-4xl font-bold mb-2">$19.99<span className="text-lg">/month</span></div>
+            <div className="text-4xl font-bold mb-2">
+              $19.99<span className="text-lg">/month</span>
+            </div>
             <p className="text-white/90">Cancel anytime</p>
           </div>
           <div className="p-8">
             <ul className="space-y-4">
               {[
-                'Verified badge on your profile',
-                'Priority ranking in search results',
-                'Early access to new platforms',
-                'Ad-free experience',
-                'Premium support',
-                'Monthly analytics reports'
+                "Verified badge on your profile",
+                "Priority ranking in search results",
+                "Early access to new platforms",
+                "Ad-free experience",
+                "Premium support",
+                "Monthly analytics reports",
               ].map((feature, index) => (
                 <li key={index} className="flex items-center gap-3">
                   <Check className="w-5 h-5 text-green-600" />
@@ -116,7 +123,9 @@ export function PremiumPage() {
                 />
                 <div>
                   <div className="font-semibold">{testimonial.name}</div>
-                  <div className="text-sm text-gray-600">{testimonial.role}</div>
+                  <div className="text-sm text-gray-600">
+                    {testimonial.role}
+                  </div>
                 </div>
               </div>
               <p className="text-gray-600 mb-4">{testimonial.content}</p>
